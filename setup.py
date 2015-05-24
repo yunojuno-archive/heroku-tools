@@ -4,7 +4,7 @@ import os
 
 from setuptools import setup
 
-dependencies = ['click', 'envoy', 'pyyaml', 'requests']
+dependencies = ['click', 'envoy', 'pyyaml', 'requests', 'dateutils']
 
 README = open(os.path.join(os.path.dirname(__file__), 'README.rst')).read()
 
@@ -26,9 +26,10 @@ setup(
     install_requires=dependencies,
     entry_points={
         'console_scripts': [
+            'heroku-tools = heroku_tools:entry_point',
             'deploy = heroku_tools.deploy:deploy',
-            'config = heroku_tools.deploy:config',
-            'migrate = heroku_tools.deploy:migrate'
+            # 'config = heroku_tools.config:config',
+            # 'migrate = heroku_tools.data:migrate'
         ],
     },
     classifiers=[

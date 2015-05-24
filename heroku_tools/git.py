@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
+"""Git related commands."""
 import os
 import envoy
 
+from heroku_tools.config import settings
+
 # location of the website git repo directory
-WORK_TREE = os.getenv('WORK_TREE', ".")
-GIT_DIR = "%s/.git" % WORK_TREE
+work_dir = settings['git_work_dir']
+git_dir = os.path.join(work_dir, '.git')
+git_cmd_prefix = "git --git-dir=%s --work-tree=%s " % (git_dir, work_dir)
 
 
 def _do_git_cmd(command):
@@ -20,21 +24,22 @@ def _do_git_cmd(command):
         command: the command to run - without the 'git ' prefix, e.g.
             "status", "log --oneline", etc.
 
-    Kwargs:
-        capture: if True, then returns the output of the command as a string.
+    Returns the output of the command as a string.
 
-    Returns:
-        the output of the command as a string if capture=True, else just
-        runs the commands and returns None.
     """
-    prefix = "git --git-dir=%s --work-tree=%s " % (GIT_DIR, WORK_TREE)
-    r = envoy.run(prefix + command)
+    cmd = git_cmd_prefix + command
+    r = envoy.run(cmd)
     if r.status_code > 0:
         raise Exception(
             u"Error running git command '%s': %s"
-            % (command, r.std_err)
+            % (cmd, r.std_err)
         )
     return r.std_out
+
+
+def get_remote_url(app_name):
+    """Return the git remote address on Heroku."""
+    return "git@heroku.com:%s.git" % app_name
 
 
 def get_editor():
@@ -42,7 +47,7 @@ def get_editor():
 
     Looks first in git.config, then $EDITOR, $VISUAL
 
-    If no editor is found, returns None.
+    Raise an Exception if no editor is configured.
 
     """
     editor = (
@@ -59,42 +64,42 @@ def get_editor():
     return editor
 
 
-def checkout_branch(branch):
-    """ Perform a 'git checkout' on the local repo."""
-    _do_git_cmd("checkout %s" % branch)
-
-
 def push(remote, local_branch, remote_branch="master", force=False):
     """Do a git push of a branch to a remote repo."""
+    print "dry run:", settings.get('dry_run')
+    return
     if force:
         _do_git_cmd("push %s %s:%s -f" % (remote, local_branch, remote_branch))
     else:
         _do_git_cmd("push %s %s:%s" % (remote, local_branch, remote_branch))
 
 
-def get_branch_name():
+def get_current_branch():
     """ Return the current branch name (from GIT_DIR)."""
     return _do_git_cmd("rev-parse --abbrev-ref HEAD")
 
 
-def get_log(commit_from, commit_to='HEAD'):
+def get_branch_head(branch):
+    """Get the hash of the latest commit on a given branch."""
+    # cast to str as passing unicode to git commands causes them to fail
+    return _do_git_cmd("rev-parse %s" % branch)[:7]
+
+
+def get_commits(commit_from, commit_to):
     """
     Return the oneline format git history between two commits.
 
     Args:
         commit_from: the commit hash of the earlier commit.
-
-    Kwargs:
         commit_to: the commit hash of the later commit, defaults to HEAD.
 
-    Returns:
-        a list of 2-tuples, each containing the commit hash, and the commit
-            message.
+    Returns a list of 2-tuples, each containing the commit hash, and the commit
+    message.
 
     e.g. if the commit log looks like this:
 
         81a5ea8 Fix for failing tests.
-         Refactoring of conversations.
+        62d49e9 Refactoring of conversations.
 
     The return value is:
 
@@ -105,29 +110,27 @@ def get_log(commit_from, commit_to='HEAD'):
 
     """
     command = "log --oneline --no-merges %s..%s" % (commit_from, commit_to)
-    return _do_git_cmd(command)
+    raw = _do_git_cmd(command)
+    lines = raw.lstrip().rstrip().split('\n')
+    return [(l[:7], l[8:]) for l in lines]
 
 
-def get_diff(commit_from, commit_to='HEAD'):
+def get_files(commit_from, commit_to):
     """
     Return the names of all the files that have changed between two commits.
 
     Args:
         commit_from: the first commit - can be a commit hash or a tag.
+        commit_to: the last commit - can be a commit hash or a tag.
 
-    Kwargs:
-        commit_to: the last commit - defaults to 'HEAD'. Can be a commit hash
-            or a tag.
+    Returns a list of fully qualified filenames.
 
-    Returns:
-        a list of fully qualified filenames.
     """
     command = "diff --name-only %s..%s" % (commit_from, commit_to)
-    return _do_git_cmd(command)
-    # if len(diff) == 0:
-    #     return None
-    # else:
-    #     return [d for d in diff.split('\n')]
+    raw = _do_git_cmd(command)
+    files = raw.lstrip().rstrip().split('\n')
+    files.sort()
+    return files
 
 
 def apply_tag(commit, tag, message):
