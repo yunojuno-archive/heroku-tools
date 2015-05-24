@@ -1,0 +1,29 @@
+# Configuration file for deployments
+# ======================================================
+# For each environment, the following properties apply:
+#
+# * label - arbitrary label for the environment
+# * app_name - the Heroku application name referred to
+# * branch - the git branch to deploy to the application
+#
+# ======================================================
+environments:
+
+    - label:    live
+      app_name: mapp_app_1
+      branch:   master
+      pipeline: True
+      promote:  my_app_2
+
+    - label:    uat
+      app_name: my_app_2
+      branch:   master
+
+    - label:    dev
+      app_name: my_app_3
+      branch:   dev
+
+commands:
+
+    collectstatic: python manage.py collectstatic
+    migrate: python manage.py migrate
