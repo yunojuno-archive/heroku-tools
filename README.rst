@@ -1,7 +1,7 @@
 Heroku Tools
 ============
 
-Opinionated tools for managing Heroku applications, based on the workflow used by YunoJuno, outlined in [this blog post](http://tech.yunojuno.com/deploying-django-apps-to-heroku-3).
+Opinionated tools for managing Heroku applications, based on the workflow used by YunoJuno, outlined in `this blog post <http://tech.yunojuno.com/deploying-django-apps-to-heroku-3>`_.
 
 Background
 ----------
@@ -13,15 +13,15 @@ It is **opinionated**, and enforces a specific workflow.
 Workflow
 --------
 
-The workflow that this application supports is based on [gitflow](http://nvie.com/posts/a-successful-git-branching-model/), and works in the following way.
+The workflow that this application supports is based on `gitflow <http://nvie.com/posts/a-successful-git-branching-model/>`_, and works in the following way.
 
 The project has two permanent git branches - ``master`` and ``dev`` (as per gitflow), and three Heroku environments: **live**, **uat** and **dev**.
 
-The dev branch is deployed to the dev environment, and is where integration testing is done. Developers working locally on feature branches do their own testing locally, and when they are finished, submit pull requests for merging their branch back into dev. When this is done, dev is pushed.
+The dev branch is deployed to the **dev** environment, and is where integration testing is done. Developers working locally on feature branches do their own testing locally, and when they are finished, submit pull requests for merging their branch back into dev. When this is done, dev is pushed.
 
-When a release is due, dev is merged into master, and the master branch is pushed to uat and live environments. The only difference between these two is that uat is not public, and so is used for final testing (e.g. User Acceptance Testing). This may map to "pre-production" or "staging" in other projects.
+When a release is due, dev is merged into master, and the master branch is pushed to **uat** and **live** environments. The only difference between these two is that **uat** is not public, and so is used for final testing (e.g. User Acceptance Testing). This may map to "pre-production" or "staging" in other projects.
 
-(Following this model, code is pushed 'up' through the environments from dev to uat to live. At the same time, data is migrated down through the environments from live to uat to dev. The uat environment is where the latest code meets the latest data - hence it being used for testing. This project will also contain data migration and anonymisation scripts once ported over.)
+(Following this model, code is pushed 'up' through the environments from **dev** to **uat** to **live**. At the same time, data is migrated down through the environments from **live** to **uat** to **dev**. The **uat** environment is where the latest code meets the latest data - hence it being used for testing. This project will also contain data migration and anonymisation scripts once ported over.)
 
 Heroku Deployments
 ------------------
@@ -41,7 +41,7 @@ In most cases it looks more like this:
 
 This project encapsulates all of the above.
 
-..code::shell
+.. code:: shell
 
     $ deploy dev
     $ deploy dev --branch feature/xxx
@@ -55,7 +55,7 @@ This project contains a ``deploy`` command line application that reinforces this
 
 The workflow specifics are configured in a YAML file:
 
-..code::YAML
+.. code:: YAML
 
     environments:
 
@@ -79,9 +79,14 @@ The workflow specifics are configured in a YAML file:
 Configuration
 -------------
 
-TBC - but this will incorporate our [configuration management process](http://tech.yunojuno.com/managing-multiple-heroku-configurations).
+TBC - but this will incorporate our `configuration management process <http://tech.yunojuno.com/managing-multiple-heroku-configurations>`_.
 
 Data
 ----
 
 TBC - this will include our data migration and anonymisation process.
+
+Status
+------
+
+In development. Please don't use right now.
