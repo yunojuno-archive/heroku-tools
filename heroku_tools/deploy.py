@@ -206,3 +206,23 @@ def deploy(target, force, collectstatic, migrate, branch, verbose):
 
     # if run_collectstatic is True:
     #     collectstatic()
+
+@click.command()
+@click.argument('target')
+def config(target):
+    """Update Heroku app environment settings."""
+    pass
+
+@click.command()
+@click.argument('target')
+def migrate(target):
+    """Migrate data between Heroku applications.
+
+    The TARGET is the label used in the configuration for the
+    application into which you wish to migrate data. The source
+    application is defined in the configuration also.
+
+    """
+    pass
+
+
