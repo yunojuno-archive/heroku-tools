@@ -2,28 +2,39 @@
 # ======================================================
 # For each environment, the following properties apply:
 #
-# * label - arbitrary label for the environment
-# * app_name - the Heroku application name referred to
-# * branch - the git branch to deploy to the application
+# * label     arbitrary label for the environment
+# * app_name  the Heroku application name referred to
+# * branch    the git branch to deploy to the application
+# * pipeline  bool, whether to deploy using Heroku's
+#             pipline deployment feature
+#
+# The `upstream` and `downstream` attributes are used to
+# determine how to migrate data (downstream -> upsteam)
+# and pipeline deployments (upstream -> downstream)
 #
 # ======================================================
 environments:
 
-    - label:    live
-      app_name: mapp_app_1
-      branch:   master
-      pipeline: True
-      promote:  my_app_2
+    - label:      live
+      app_name:   mapp_app_1
+      branch:     master
+      pipeline:   True
+      upstream:   uat
 
-    - label:    uat
-      app_name: my_app_2
-      branch:   master
+    - label:      uat
+      app_name:   my_app_2
+      branch:     master
+      downstream: live
+      upstream:   dev
 
-    - label:    dev
-      app_name: my_app_3
-      branch:   dev
+    - label:      dev
+      app_name:   my_app_3
+      branch:     dev
+      downstream: uat
 
 commands:
 
     collectstatic: python manage.py collectstatic
     migrate: python manage.py migrate
+    anonymise: python manage.py anonymise_data
+    truncate: python manage.py truncate_data
