@@ -40,8 +40,7 @@ def get_release_note(commits, filename="RELEASE_NOTE"):
 @click.option('-f', '--force', is_flag=True, help="Run 'git push' with the '-f' force option")  # noqa
 @click.option('-s', '--run-collectstatic', is_flag=True, help="Run collectstatic command post deployment")  # noqa
 @click.option('-m', '--run-migrate', is_flag=True, help="Run the migrate command post deployment")  # noqa
-@click.option('-v', '--verbose', is_flag=True, help="Show verbose output")
-def deploy(target, auto, branch, config_file, force, run_collectstatic, run_migrate, verbose, dry_run):
+def deploy(target, auto, branch, config_file, force, run_collectstatic, run_migrate, dry_run):
     """Deploy a Heroku application and run post-deployment commands.
 
     Push code via git, run collectstatic and migrate commands, and wrap
@@ -68,9 +67,6 @@ def deploy(target, auto, branch, config_file, force, run_collectstatic, run_migr
     match_migrations = settings['matches']['migrations']
     match_staticfiles = settings['matches']['staticfiles']
 
-    if verbose:
-        click.echo("Settings:\n%s" % settings)
-
     # get the contents of the proposed deployment
     release = heroku.HerokuRelease.get_latest(app_name)
     remote_hash = release.commit
@@ -78,14 +74,15 @@ def deploy(target, auto, branch, config_file, force, run_collectstatic, run_migr
     files = git.get_files(remote_hash, local_hash)
     commits = git.get_commits(remote_hash, local_hash)
 
-    if verbose:
-        click.echo("")
-        click.echo("The following files have changed since the last deployment:\n")  # noqa
-        [click.echo("  * %s" % f) for f in files]
-        click.echo("")
-        click.echo("The following commits will be included in this deployment:\n")  # noqa
-        [click.echo("  * %s" % c[1]) for c in commits]
-        click.echo("")
+    click.echo("")
+    click.echo("Comparing %s..%s" % (remote_hash, local_hash))
+    click.echo("")
+    click.echo("The following files have changed since the last deployment:\n")  # noqa
+    [click.echo("  * %s" % f) for f in files]
+    click.echo("")
+    click.echo("The following commits will be included in this deployment:\n")  # noqa
+    [click.echo("  * %s" % c[1]) for c in commits]
+    click.echo("")
 
     files_include = lambda p: p in ''.join(files)
     files_include_migrations = files_include(match_migrations)
@@ -131,31 +128,43 @@ def deploy(target, auto, branch, config_file, force, run_collectstatic, run_migr
     click.echo("")
     # ============== / summarise actions ========================
 
-    # if not utils.prompt_for_pin(""):
-    #     exit(0)
+    if not utils.prompt_for_pin(""):
+        exit(0)
 
-    # heroku.toggle_maintenance(app_name, True)
+    click.echo("Putting up maintenance page")
+    heroku.toggle_maintenance(app_name, True)
 
-    # git.push_to_remote(force=force)
+    click.echo("Pushing to git remote")
+    git.push(
+        remote=git.get_remote_url(app_name),
+        local_branch=branch,
+        remote_branch='master',
+        force=force
+    )
 
-    # if run_migrate is True:
-    #     heroku.run_command(app_name, cmd_migrate)
+    if run_migrate is True:
+        click.echo("Running migrate command")
+        heroku.run_command(app_name, cmd_migrate)
 
-    # if run_collectstatic is True:
-    #     heroku.run_command(app_name, cmd_collectstatic)
+    if run_collectstatic is True:
+        click.echo("Running staticfiles command")
+        heroku.run_command(app_name, cmd_collectstatic)
 
-    # heroku.toggle_maintenance(app_name, False)
+    click.echo("Pulling down maintenance page")
+    heroku.toggle_maintenance(app_name, False)
 
-    # release = heroku.HerokuRelease.get_latest(app_name)
-    # git.apply_tag(
-    #     commit=local_hash,
-    #     tag=release.version,
-    #     message="Deployed to %s by %s" % (
-    #         app_name,
-    #         release.deployed_by
-    #     )
-    # )
+    release = heroku.HerokuRelease.get_latest(app_name)
+    click.echo("Applying git tag")
+    git.apply_tag(
+        commit=local_hash,
+        tag=release.version,
+        message="Deployed to %s by %s" % (
+            app_name,
+            release.deployed_by
+        )
+    )
 
+    click.echo(release)
     # if release_note and utils.prompt_for_action(
     #     "Would you like to write a release note? ", True):
     #     release_note = get_release_note(commits)

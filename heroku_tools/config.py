@@ -2,6 +2,7 @@
 """Configuration for heroku-tools itself and Heroku applications."""
 import os
 
+import click
 import yaml
 
 
@@ -46,6 +47,17 @@ def get_settings(filename):
         }
     }
 
+    if filename in (None, ''):
+        click.echo(u"No config specified, default settings will be applied.")
+        return default_values
+
+    if os.path.exists(filename):
+        click.echo(u"Applying settings from %s" % filename)
+    else:
+        click.echo(u"Config does not exist - %s" % filename)
+        clich.echo(u"Default settings will be applied.")
+        return default_values
+
     try:
         with open(filename, 'r') as f:
             local = yaml.load(f)
@@ -54,8 +66,9 @@ def get_settings(filename):
             settings['commands'].update(local.get('commands', {}))
             settings['matches'].update(local.get('matches', {}))
             return settings
-    except IOError:
+    except IOError as ex:
         # if we can't read the file just blast through with the defaults.
+        click.echo(".herokutoolsconfig file could not be read: %s" % ex)
         return default_values
 
 
