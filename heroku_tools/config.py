@@ -130,6 +130,21 @@ class AppConfiguration():
         """App to promote if use_pipeline is True."""
         return self.application.get('upstream', None)
 
+    def add_tag(self):
+        """Add release version as a git tag post-deployment."""
+        return self.application.get('add_tag', False)
+
+
+@click.command(name='config')
+@click.argument('target_environment')
+def configure_application(target_environment):
+    """Configure Heroku application settings.
+
+    Run a diff between the remote Heroku application settings and a local
+    settings file, print out the results, and push the difference to Heroku.
+
+    """
+    pass
 
 # the default settings can be overridden by a local '.herokutoolsconf' files
 settings = get_settings(os.path.join(os.getcwd(), '.herokutoolsconf'))

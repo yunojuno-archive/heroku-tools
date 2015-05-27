@@ -31,8 +31,8 @@ def get_release_note(commits, filename="RELEASE_NOTE"):
         return release_note
 
 
-@click.command()
-@click.argument('target')
+@click.command(name='deploy')
+@click.argument('target_environment')
 @click.option('-a', '--auto', is_flag=True, help="Accept options without asking for confirmation")  # noqa
 @click.option('-b', '--branch', help="Deploy a specific branch")
 @click.option('-c', '--config-file', help="Specify application configuration file to use")  # noqa
@@ -40,7 +40,7 @@ def get_release_note(commits, filename="RELEASE_NOTE"):
 @click.option('-f', '--force', is_flag=True, help="Run 'git push' with the '-f' force option")  # noqa
 @click.option('-s', '--run-collectstatic', is_flag=True, help="Run collectstatic command post deployment")  # noqa
 @click.option('-m', '--run-migrate', is_flag=True, help="Run the migrate command post deployment")  # noqa
-def deploy(target, auto, branch, config_file, force, run_collectstatic, run_migrate, dry_run):
+def deploy_application(target_environment, auto, branch, config_file, force, run_collectstatic, run_migrate, dry_run):
     """Deploy a Heroku application and run post-deployment commands.
 
     Push code via git, run collectstatic and migrate commands, and wrap
@@ -58,7 +58,7 @@ def deploy(target, auto, branch, config_file, force, run_collectstatic, run_migr
     # read in and parse configuration
     app = AppConfiguration.load(
         config_file or
-        os.path.join(settings['app_conf_dir'], '%s.conf' % target)
+        os.path.join(settings['app_conf_dir'], '%s.conf' % target_environment)
     )
     app_name = app.app_name
     branch = branch or app.default_branch
@@ -68,9 +68,13 @@ def deploy(target, auto, branch, config_file, force, run_collectstatic, run_migr
     match_staticfiles = settings['matches']['staticfiles']
 
     # get the contents of the proposed deployment
-    release = heroku.HerokuRelease.get_latest(app_name)
+    release = heroku.HerokuRelease.get_latest_deployment(app_name)
     remote_hash = release.commit
     local_hash = git.get_branch_head(branch)
+    if local_hash == remote_hash:
+        click.echo(u"Heroku application is up-to-date, aborting deployment.")
+        return
+
     files = git.get_files(remote_hash, local_hash)
     commits = git.get_commits(remote_hash, local_hash)
 
@@ -111,7 +115,7 @@ def deploy(target, auto, branch, config_file, force, run_collectstatic, run_migr
     click.echo("  ----- Deployment settings -----------")
     click.echo("")
     click.echo("  Git branch:    %s" % branch)
-    click.echo("  Target env:    %s (%s)" % (target, app_name))
+    click.echo("  Target env:    %s (%s)" % (target_environment, app_name))
     click.echo("  Force push:    %s" % force)
     click.echo("  Pipeline:      %s" % app.use_pipeline)
     if app.use_pipeline is True:
@@ -153,16 +157,18 @@ def deploy(target, auto, branch, config_file, force, run_collectstatic, run_migr
     click.echo("Pulling down maintenance page")
     heroku.toggle_maintenance(app_name, False)
 
-    release = heroku.HerokuRelease.get_latest(app_name)
-    click.echo("Applying git tag")
-    git.apply_tag(
-        commit=local_hash,
-        tag=release.version,
-        message="Deployed to %s by %s" % (
-            app_name,
-            release.deployed_by
+    release = heroku.HerokuRelease.get_latest_deployment(app_name)
+
+    if app.add_tag:
+        click.echo("Applying git tag")
+        git.apply_tag(
+            commit=local_hash,
+            tag=release.version,
+            message="Deployed to %s by %s" % (
+                app_name,
+                release.deployed_by
+            )
         )
-    )
 
     click.echo(release)
     # if release_note and utils.prompt_for_action(

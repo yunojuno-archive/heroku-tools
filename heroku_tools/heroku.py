@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Heroku API helper functions."""
 from dateutil import parser
+import click
 import envoy
 import requests
 
@@ -19,7 +20,10 @@ class HerokuError(Exception):
 
 class HerokuRelease():
 
-    """Encapsulates a release as described by the Heroku release API."""
+    """Encapsulates a release as described by the Heroku release API.
+
+    See https://devcenter.heroku.com/articles/platform-api-reference#release
+    """
 
     def __init__(self, raw):
         """Initialise new object from raw JSON as return from API."""
@@ -43,51 +47,66 @@ class HerokuRelease():
     @property
     def application(self):
         """The name of the application."""
-        return self._json['app_name']
+        return self._json['app']['name']
 
     @property
     def commit(self):
         """The hash of the commit deployed in the release."""
-        # return as string as unicode kills git commands
-        return str(self._json['commit'])
+        if self.description.startswith('Promote'):
+            # "Promote my-app v123 75c70c5"
+            return self.description.split(' ')[3]
+        elif self.description.startswith('Deploy'):
+            # "Deploy 75c70c5"
+            return self.description.split(' ')[1]
+        else:
+            return "invalid"
 
     @property
     def deployed_at(self):
         """The datetime at which the deployment occurred."""
-        return parser.parse(self._json['created_at'])
+        return parser.parse(self._json['updated_at'])
 
     @property
     def description(self):
         """The description supplied by Heroku for the release."""
-        # return as string as unicode kills git commands
-        return str(self._json['descr'])
+        return str(self._json['description'])
 
     @property
     def version(self):
         """The version number (supplied by Heroku) of the release."""
-        # return as string as unicode kills git commands
-        return str(self._json['name'])
+        return self._json['version']
 
     @property
     def deployed_by(self):
         """The name of the person responsible for the release."""
-        # return as string as unicode kills git commands
-        return str(self._json['user'])
+        return str(self._json['user']['email'])
+
 
     @classmethod
-    def get_latest(cls, application):
+    def get_latest_deployment(cls, application):
         """Return the most recent release as HerokuRelease object.
 
         See https://devcenter.heroku.com/articles/platform-api-reference#release  # noqa
         """
         url = HEROKU_API_URL % application
         auth = requests.auth.HTTPBasicAuth('', HEROKU_API_TOKEN)
+        headers = {
+            'Accept': 'application/vnd.heroku+json; version=3',
+            'Range': 'version;max=10,order=desc'
+        }
         try:
-            raw = requests.get(url, auth=auth).json()[-1]
-            raw['app_name'] = application
-            return HerokuRelease(raw)
+            releases = requests.get(url, auth=auth, headers=headers).json()
         except Exception as ex:
             raise HerokuError(u"Error calling Heroku API: %s" % ex)
+
+        for r in releases:
+            description = r.get('description','').split(' ')[0]
+            if description in ('Promote', 'Deploy'):
+                return HerokuRelease(r)
+            else:
+                click.echo("Ignoring release: %s" % description)
+
+        raise HerokuError(u"No deployments found in API response.")
 
 
 def _do_heroku_command(application, command):

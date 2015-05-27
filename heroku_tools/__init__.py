@@ -12,10 +12,7 @@ def entry_point():
     """Application entry point - a group container for sub-commands."""
     pass
 
-# add sub-commands to the main entrypoint
-entry_point.add_command(deploy.deploy)
-
-@entry_point.command()
+@click.command()
 def settings():
     """Print out current settings."""
     click.echo("""
@@ -27,3 +24,8 @@ def settings():
 
 %s
 """ % json.dumps(config.settings, indent=4))
+
+# add sub-commands to the main entrypoint
+entry_point.add_command(settings)
+entry_point.add_command(deploy.deploy_application)
+entry_point.add_command(config.configure_application)

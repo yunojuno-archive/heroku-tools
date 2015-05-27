@@ -66,8 +66,6 @@ def get_editor():
 
 def push(remote, local_branch, remote_branch="master", force=False):
     """Do a git push of a branch to a remote repo."""
-    print "dry run:", settings.get('dry_run')
-    return
     if force:
         _do_git_cmd("push %s %s:%s -f" % (remote, local_branch, remote_branch))
     else:
@@ -112,7 +110,7 @@ def get_commits(commit_from, commit_to):
     command = "log --oneline --no-merges %s..%s" % (commit_from, commit_to)
     raw = _do_git_cmd(command)
     lines = raw.lstrip().rstrip().split('\n')
-    return [(l[:7], l[8:]) for l in lines]
+    return [(l[:7], l[8:]) for l in lines if l != '']
 
 
 def get_files(commit_from, commit_to):
@@ -130,7 +128,8 @@ def get_files(commit_from, commit_to):
     raw = _do_git_cmd(command)
     files = raw.lstrip().rstrip().split('\n')
     files.sort()
-    return files
+    # strip empty strings
+    return [f for f in files if f != '']
 
 
 def apply_tag(commit, tag, message):
