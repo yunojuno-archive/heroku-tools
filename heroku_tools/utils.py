@@ -9,6 +9,9 @@ import click
 def prompt_for_pin(prompt, exit_on_failure=True):
     """Prompt user to input random number before continuing.
 
+    This is used for user confirmation prior to taking any
+    irreversible action - e.g. a deployment, or data migration.
+
     Args:
         pre_prompt: a message to print out before the prompt.
 
@@ -18,11 +21,11 @@ def prompt_for_pin(prompt, exit_on_failure=True):
             return False to the calling procedure instead.
 
     """
-    p = "%0.6d" % (random.randint(0, 999999))
+    random_pin = "%0.6d" % (random.randint(0, 999999))
     if prompt not in (None, ""):
         click.echo(prompt)
-    pin = raw_input("Type in the code shown to continue [%s]: " % p)
-    if pin == p:
+    pin = raw_input("Type in the code shown to continue [%s]: " % random_pin)
+    if pin == random_pin:
         return True
     else:
         if exit_on_failure:
@@ -48,15 +51,15 @@ def prompt_for_action(question, default):
     """
     if default is True:
         # if the default is True, the a 'y' or nothing is good
-        action = raw_input(question+' [Y/n]: ')
+        action = raw_input(question + ' [Y/n]: ')
         return action == '' or action.lower().startswith('y')
     else:
         # if the default is False, then only a 'y' will do
-        action = raw_input(question+' [y/N]: ')
+        action = raw_input(question + ' [y/N]: ')
         return action.lower().startswith('y')
 
 
-def split_print_lines(text, line_format='  * %s'):
+def split_print_lines(text, delimiter='\n', line_format='  * %s'):
     """Split a block of text and print out as lines."""
-    for line in text.lstrip().rstrip().split('\n'):
+    for line in text.lstrip().rstrip().split(delimiter):
         click.echo(line_format % line)

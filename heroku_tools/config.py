@@ -5,72 +5,9 @@ import os
 import click
 import yaml
 
-
-def get_settings(filename):
-    """Load configuration for heroku-tools itself.
-
-    Configuration settings are read in in the following order:
-
-    - local .herokutoolsconf YAML file in current working directory
-    - environment variables
-    - defaults (set in this function)
-
-    This method is called within this module, making all settings available
-    to the rest of the application as heroku_tools.conf.settings.
-
-    """
-    cwd = os.getcwd()
-    default_values = {
-        'app_conf_dir': os.getenv('HEROKU_TOOLS_CONF_DIR') or cwd,
-        'git_work_dir': os.getenv('HEROKU_TOOLS_WORK_DIR') or cwd,
-        'editor': os.getenv('EDITOR') or os.getenv('VISUAL'),
-        'heroku_api_token': os.getenv('HEROKU_TOOLS_API_TOKEN'),
-        'commands': {
-            'migrate': (
-                os.getenv('HEROKU_TOOLS_MIGRATE_CMD')
-                or 'python manage.py migrate'
-            ),
-            'collectstatic': (
-                os.getenv('HEROKU_TOOLS_STATIC_CMD')
-                or 'python manage.py collectstatic'
-            ),
-        },
-        'matches': {
-            'migrations': (
-                os.getenv('HEROKU_TOOLS_MATCH_MIGRATIONS')
-                or '/migrations/'
-            ),
-            'staticfiles': (
-                os.getenv('HEROKU_TOOLS_MATCH_STATICFILES')
-                or '/static/'
-            ),
-        }
-    }
-
-    if filename in (None, ''):
-        click.echo(u"No config specified, default settings will be applied.")
-        return default_values
-
-    if os.path.exists(filename):
-        click.echo(u"Applying settings from %s" % filename)
-    else:
-        click.echo(u"Config does not exist - %s" % filename)
-        clich.echo(u"Default settings will be applied.")
-        return default_values
-
-    try:
-        with open(filename, 'r') as f:
-            local = yaml.load(f)
-            settings = default_values.copy()
-            settings.update(local.get('settings', {}))
-            settings['commands'].update(local.get('commands', {}))
-            settings['matches'].update(local.get('matches', {}))
-            return settings
-    except IOError as ex:
-        # if we can't read the file just blast through with the defaults.
-        click.echo(".herokutoolsconfig file could not be read: %s" % ex)
-        return default_values
-
+from heroku_tools.settings import SETTINGS
+from heroku_tools.heroku import HerokuRelease, run_cmd
+from heroku_tools.utils import prompt_for_pin
 
 class ConfigurationError(Exception):
 
@@ -79,7 +16,7 @@ class ConfigurationError(Exception):
     pass
 
 
-class AppConfiguration():
+class AppConfiguration(object):
 
     """Heroku application configuration, with helper methods."""
 
@@ -130,6 +67,141 @@ class AppConfiguration():
         """App to promote if use_pipeline is True."""
         return self.application.get('upstream', None)
 
+    @property
+    def add_tag(self):
+        """Add release version as a git tag post-deployment."""
+        return self.application.get('add_tag', False)
 
-# the default settings can be overridden by a local '.herokutoolsconf' files
-settings = get_settings(os.path.join(os.getcwd(), '.herokutoolsconf'))
+
+def compare_settings(local_config_vars, remote_config_vars):
+    """Compare local and remote settings and return the diff.
+
+    This function takes two dictionaries, and compares the two. Any given
+    setting will have one of the following statuses:
+
+    '=' In both, and same value for both (no action required)
+    '!' In both, but with different values (an 'update' to a known setting)
+    '+' [In local, but not in remote (a 'new' setting to be applied)
+    '?' In remote, but not in local (reference only - these are generally
+        Heroku add-on specfic settings that do not need to be captured
+        locally; they are managed through the Heroku CLI / website.)
+
+    NB This function will convert all local settings values to strings
+    before comparing - as the environment settings on Heroku are string.
+    This means that, e.g. if a bool setting is 'true' on Heroku and True
+    locally, they will **not** match.
+
+    Returns a list of 4-tuples that contains:
+
+        (setting name, local value, remote value, status)
+
+    The status value is one of '=', '!', '+', '?', as described above.
+
+    """
+    diff = []
+    for k, v in local_config_vars.items():
+        if k in remote_config_vars:
+            if str(remote_config_vars[k]) == str(v):
+                diff.append((k, v, remote_config_vars[k], '='))
+            else:
+                diff.append((k, v, remote_config_vars[k], '!'))
+        else:
+            diff.append((k, v, None, '+'))
+
+    # that's the local settings done - now for the remote settings.
+    for k, v in remote_config_vars.items():
+        if k not in local_config_vars:
+            diff.append((k, None, v, '?'))
+
+    return sorted(diff)
+
+
+def print_diff(diff, statuses=['=', '+', '?', '!']):
+    """
+    Print out the local:remote settings diff, indicating mismatches.
+
+    This function uses the diff format returned from 'compare_settings',
+    which is a list of 4-tuples (key, local setting, remote setting, status).
+    Settings are listed in alphabetical order, with a single char prefix
+    indicating whether the remote setting needs to be updated or not.
+
+    Kwargs:
+        statuses: a list of char status values that will be printed. This
+            can be used to filter the print out, so that, for instance, remote-
+            only vars are written out separately (recommended).
+    """
+    key_names = [k[0] for k in diff]
+    max_length = len(max(key_names, key=len))
+    for key, local, remote, status in diff:
+        if status in statuses:
+            kmax = key.ljust(max_length)
+            if status == '=':  # it's a match
+                print u'  %s: %s' % (kmax, local)
+            elif status == '+':  # it's a new setting
+                print u'+ %s: %s' % (kmax, local)
+            elif status == '!':  # it's a mismatch
+                print u'! %s: %s (remote = %s)' % (kmax, local, remote)
+            elif status == '?':  # it's a remote setting
+                print u'? %s: %s (remote only)' % (kmax, remote)
+            else:
+                print u"Unknown configuration status for %s: %s" % (key, status)
+
+
+def set_vars(application, settings):
+    """
+    Set remote Heroku environment variables.
+
+    Args:
+        application: the name of the Heroku application to update.
+        settings: a list of 4-tuples as returned from the get_vars function.
+            This list will be used to update remote settings to the current
+            local value.
+    """
+    # prompt_for_pin(None)
+    # the Heroku config:set command takes a space delimited set of k=v pairs
+    cmd_args = " ".join([("%s=%s" % (s[0], s[1])) for s in settings])
+    command = u"config:set %s" % cmd_args
+    return run_cmd(application, command)
+
+
+@click.command(name='config')
+@click.argument('target_environment')
+def configure_application(target_environment):
+    """Configure Heroku application settings.
+
+    Run a diff between local configuration and remote settings
+    and apply any updates to the remote application:
+
+    1. Load local configuration (from target_environment.conf)\n
+    2. Fetch remote application config vars (via API)\n
+    3. Compare the two\n
+    4. Display the diff\n
+    5. Prompt user for confirmation to apply updates\n
+    6. Apply updates
+
+    """
+    app = AppConfiguration.load(
+        os.path.join(SETTINGS['app_conf_dir'], '%s.conf' % target_environment)
+    )
+    app_name = app.app_name
+    release = HerokuRelease.get_latest_deployment(app_name)
+    diff = compare_settings(app.settings, release.get_config_vars())
+
+    print u"\nLocal settings (diff shown by '!', '+' indicator):\n"
+    print_diff(diff, statuses=['=', '+', '!'])
+
+    print u"\nRemote-only settings (probably Heroku-specific and ignorable):\n"
+    remote_only = [d[0] for d in diff if d[3] == '?']
+    print u", ".join(remote_only)
+
+    updates = [d for d in diff if d[3] in ['!', '+']]
+    if len(updates) == 0:
+        print u"\nAll settings are up-to-date. No action required."
+        return
+
+    print u"\nThe following settings will be applied to '%s':\n" % app_name
+    for key, local, _, status in updates:
+        print u"%s %s=%s" % (status, key, local)
+    print u""
+
+    print set_vars(app_name, updates)

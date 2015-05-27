@@ -53,33 +53,33 @@ Deployments
 
 This project contains a ``deploy`` command line application that reinforces this workflow. It takes a number of options (run ``deploy --help`` for the full list), but by default it will enforce the workflow described above. A deployment the the dev environment will push the dev branch, uat will push master, etc. It will run a diff against the remote Heroku repo to determine the list of commits (and changed files) that will be pushed, and infer from that whether to run the migrations and collectstatic.
 
-The workflow specifics are configured in a YAML file:
+The workflow specifics are configured in application / environment files:
 
 .. code:: YAML
 
-    environments:
+    application:
 
-        - label:    live
-          app_name: mapp_app_1
-          branch:   master
+        # the name of the Heroku application
+        name: live_app
+        # the default branch to push to this application
+        branch: master
+        # use the heroku pipeline:promote feature
+        pipeline: True
+        # the upstream application to promote
+        upstream: staging_app
 
-        - label:    uat
-          app_name: my_app_2
-          branch:   master
+    # Heroku application environment settings managed by the conf command
+    settings:
 
-        - label:    dev
-          app_name: my_app_3
-          branch:   dev
-
-    commands:
-
-        collectstatic: python manage.py collectstatic
-        migrate: python manage.py migrate
+        DJANGO_DEBUG: True
+        DJANGO_SECRET_KEY: foobar
+        DJANGO_SETTINGS_MODULE: my_app.settings
+        DATABASE_URL: postgres://postgres:postres@heroku.com/my_app
 
 Configuration
 -------------
 
-TBC - but this will incorporate our `configuration management process <http://tech.yunojuno.com/managing-multiple-heroku-configurations>`_.
+The ``config`` command line application incorporates our `configuration management process <http://tech.yunojuno.com/managing-multiple-heroku-configurations>`_. It sets application environment variables from the settings block in the ``application.conf`` file. Before applying the settings to the Heroku application it will run a diff against the current value of each setting in the local file. It prints out the diff, so that you can see which settings will be applied, and prompts the user to confirm that the settings should be applied before pushing to Heroku.
 
 Data
 ----

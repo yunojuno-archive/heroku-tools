@@ -27,9 +27,6 @@ setup(
     entry_points={
         'console_scripts': [
             'heroku-tools = heroku_tools:entry_point',
-            'deploy = heroku_tools.deploy:deploy',
-            # 'config = heroku_tools.config:config',
-            # 'migrate = heroku_tools.data:migrate'
         ],
     },
     classifiers=[
