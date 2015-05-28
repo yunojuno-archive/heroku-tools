@@ -36,11 +36,10 @@ def get_release_note(commits, filename="RELEASE_NOTE"):
 @click.option('-a', '--auto', is_flag=True, help="Accept options without asking for confirmation")  # noqa
 @click.option('-b', '--branch', help="Deploy a specific branch")
 @click.option('-c', '--config-file', help="Specify application configuration file to use")  # noqa
-@click.option('-d', '--dry-run', is_flag=True, help="Display commands that would be run")
 @click.option('-f', '--force', is_flag=True, help="Run 'git push' with the '-f' force option")  # noqa
 @click.option('-s', '--run-collectstatic', is_flag=True, help="Run collectstatic command post deployment")  # noqa
 @click.option('-m', '--run-migrate', is_flag=True, help="Run the migrate command post deployment")  # noqa
-def deploy_application(target_environment, auto, branch, config_file, force, run_collectstatic, run_migrate, dry_run):
+def deploy_application(target_environment, auto, branch, config_file, force, run_collectstatic, run_migrate):
     """Deploy a Heroku application and run post-deployment commands.
 
     Push code via git, run collectstatic and migrate commands, and wrap

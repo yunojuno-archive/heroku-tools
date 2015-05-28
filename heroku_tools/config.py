@@ -55,7 +55,7 @@ def get_settings(filename):
         click.echo(u"Applying settings from %s" % filename)
     else:
         click.echo(u"Config does not exist - %s" % filename)
-        clich.echo(u"Default settings will be applied.")
+        click.echo(u"Default settings will be applied.")
         return default_values
 
     try:

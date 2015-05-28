@@ -7,10 +7,12 @@ import click
 import config
 import deploy
 
+
 @click.group()
 def entry_point():
     """Application entry point - a group container for sub-commands."""
     pass
+
 
 @click.command()
 def settings():
