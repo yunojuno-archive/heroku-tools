@@ -3,9 +3,10 @@ import json
 import unittest
 
 from mock import patch, call
-
 from heroku_tools.heroku import HerokuRelease
-
+import utils
+import click
+from click.testing import CliRunner
 
 class MockResponse(object):
     """Mock requests library response.json()."""
@@ -21,7 +22,9 @@ def mock_get(*args, **kwargs):
 class HerokuReleaseTests(unittest.TestCase):
 
     def setUp(self):
-        self.json_input = {'app': {'name': 'hulahoop'}}
+        json_data = json.load(open('test_data/foo.json', 'r'))
+        self.json_input = json_data[1]
+        self.initial_release_json = json_data[0]
         self.herokurelease = HerokuRelease(self.json_input)
 
     @patch("heroku_tools.heroku.call_api")
@@ -40,7 +43,6 @@ class HerokuReleaseTests(unittest.TestCase):
         call_api.return_value = [{'description': 'Hulahoop'}]
         with self.assertRaises(HerokuError):
             self.herokurelease.get_latest_deployment('x')
-            print echo.call_args
 
     @patch("requests.auth.HTTPBasicAuth")
     @patch("requests.get", side_effect=mock_get)
@@ -70,3 +72,99 @@ class HerokuReleaseTests(unittest.TestCase):
                                    u'user': {u'email': u'hugo@example.com',
                                              u'id': u'f7ee12b5-4343-4bfc-aae4-195a392d913d'},
                                    u'id': u'2fa73c36-4b25-4797-b374-f1f3be994ff2'}])
+
+    @patch("heroku_tools.heroku.parser")
+    def test_heroku_attributes(self, parser):
+        for attribute in ('version', 'description'):
+            self.assertEqual(getattr(self.herokurelease, attribute),
+                             self.json_input[attribute])
+        self.assertEqual(self.herokurelease.deployed_by,
+                         self.json_input['user']['email'])
+        parser.parse.return_value = '2013-06-18T14:07:52Z'
+        self.assertEqual(self.json_input['updated_at'],
+                         self.herokurelease.deployed_at)
+
+    def test_commit(self):
+
+        """Test for getting commit hash from description"""
+
+        result = self.herokurelease.commit
+        self.assertEqual(self.json_input['description'].split(' ')[1], result)
+        initial_release = HerokuRelease(self.initial_release_json)
+        self.assertEqual(initial_release.commit, 'invalid')
+        deploy_json = self.json_input
+        deploy_json["description"] = "Promote my-app v123 75c70c5"
+        deploy = HerokuRelease(deploy_json)
+        self.assertEqual(deploy.commit, '75c70c5')
+
+
+class UtilsTests(unittest.TestCase):
+
+    def setUp(self):
+        self.raw_input_patcher = patch("heroku_tools.utils.raw_input")
+        self.mock_raw_input = self.raw_input_patcher.start()
+        self.click_echo_patcher = patch("heroku_tools.utils.click.echo")
+        self.mock_click_echo = self.click_echo_patcher.start()
+
+    def tearDown(self):
+        self.mock_raw_input.stop()
+        self.mock_click_echo.stop()
+
+    @patch("heroku_tools.utils.sys.exit")
+    @patch("heroku_tools.utils.random.randint")
+    def test_prompt_for_pin(self, mock_randint, mock_sys_exit):
+
+        # Wrong pin
+
+        self.mock_raw_input.return_value = 99999
+        mock_randint.return_value = 66666
+        pin = utils.prompt_for_pin(None, exit_on_failure=False)
+        self.assertFalse(mock_sys_exit.called)
+        self.assertFalse(pin)
+        pin = utils.prompt_for_pin(None, exit_on_failure=True)
+        self.assertTrue(mock_sys_exit.called)
+        self.assertEqual(mock_sys_exit.call_args, call(0))
+        self.assertEqual(self.mock_click_echo.call_args, call('PIN incorrect.'))
+        self.assertFalse(pin)
+
+        # Right pin
+
+        self.mock_raw_input.return_value = str(999999)
+        mock_randint.return_value = 999999
+        pin = utils.prompt_for_pin(None, exit_on_failure=True)
+        self.assertTrue(pin)
+        pin_with_prompt = utils.prompt_for_pin("This is a prompt",
+                                               exit_on_failure=True)
+        self.assertEqual(self.mock_click_echo.call_args, call('This is a prompt'))
+        self.assertTrue(pin_with_prompt)
+
+    def test_prompt_for_action(self):
+        self.mock_raw_input.return_value = ''
+        answer = utils.prompt_for_action("Do you like hulahoop ?", True)
+        self.assertTrue(answer)
+        self.assertEqual(self.mock_raw_input.call_args,
+                         call('Do you like hulahoop ? [Y/n]: '))
+        answer_default_false = utils.prompt_for_action("Do you like hulahoop ?", False)
+        self.assertFalse(answer_default_false)
+
+    def test_split_print_lines(self):
+        input_text = "line1, line2, line3"
+        utils.split_print_lines(input_text, delimiter=",")
+        self.assertEqual(self.mock_click_echo.call_args_list,
+                         [call('  * line1'), call('  *  line2'),
+                          call('  *  line3')])
+
+    def test_split_print_lines_new(self):
+        input_text = "line1, line2, line3"
+
+        @click.command()
+        def split_lines():
+            utils.split_print_lines(input_text, delimiter=",")
+
+        runner = CliRunner()
+        arguments = dict(delimiter=",")
+        result = runner.invoke(split_lines)
+        import ipdb; ipdb.set_trace()
+
+
+
