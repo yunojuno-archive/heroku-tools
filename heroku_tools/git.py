@@ -7,7 +7,8 @@ with the WORK_DIR and GIT_DIR values.
 
 """
 import os
-import envoy
+
+import sarge
 
 from heroku_tools.settings import SETTINGS
 
@@ -33,13 +34,13 @@ def run_git_cmd(command):
 
     """
     cmd = GIT_CMD_PREFIX + command
-    r = envoy.run(cmd)
-    if r.status_code > 0:
+    r = sarge.capture_stdout(cmd)
+    if r.returncode > 0:
         raise Exception(
             u"Error running git command '%s': %s"
-            % (cmd, r.std_err)
+            % (cmd, r.stderr.text)
         )
-    return r.std_out
+    return r.stdout.text
 
 
 def get_remote_url(app_name):
@@ -56,8 +57,8 @@ def get_editor():
 
     """
     editor = (
-        run_git_cmd('config --get core.editor') or
-        SETTINGS.get('editor')
+        SETTINGS.get('editor') or 
+        sarge.capture_stdout('git config --get core.editor')
     )
     if editor is None:
         raise Exception(

@@ -10,9 +10,10 @@ application release.
 
 """
 from dateutil import parser
+
 import click
-import envoy
 import requests
+import sarge
 
 from heroku_tools.settings import SETTINGS
 
@@ -134,26 +135,36 @@ def call_api(endpoint, application, range_header=None):
 def run_cmd(application, command):
     """Run a Heroku Toolbelt command and return output."""
     cmd = "heroku %s --app %s" % (command, application)
-    retval = envoy.run(cmd)
-    if retval.status_code > 0:
+    r = _async(cmd)
+    if r.returncode > 0:
         raise HerokuError(
             u"Error running Heroku command '%s': %s"
-            % (cmd, retval.std_err)
+            % (cmd, r.stderr)
         )
-    return retval.std_out
 
 
 def run_command(application, command):
     """Run a command against a Heroku application."""
-    return run_cmd(application, "run %s" % command)
+    run_cmd(application, "run %s" % command)
 
 
 def toggle_maintenance(application, maintenance_on):
     """Toggle the Heroku maintenance feature on/off."""
     on_off = "on" if maintenance_on else "off"
-    return run_cmd(application, "maintenance:%s" % on_off)
+    run_cmd(application, "maintenance:%s" % on_off)
 
 
 def promote_app(application):
     """Run the Heroku pipeline promote command."""
-    return run_cmd(application, "pipelines:promote")
+    run_cmd(application, "pipelines:promote")
+
+
+def _async(cmd):
+    """Run bash command async."""
+    r = sarge.run(cmd, stdout=sarge.Capture(), async=True)
+    r.close()
+    line = r.stdout.readline()
+    while line != '':
+        click.echo(line.strip())
+        line = r.stdout.readline()
+    return r

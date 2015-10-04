@@ -148,8 +148,7 @@ def print_diff(diff, statuses=['=', '+', '?', '!']):
 
 
 def set_vars(application, settings):
-    """
-    Set remote Heroku environment variables.
+    """Set remote Heroku environment variables.
 
     Args:
         application: the name of the Heroku application to update.
@@ -161,7 +160,7 @@ def set_vars(application, settings):
     # the Heroku config:set command takes a space delimited set of k=v pairs
     cmd_args = " ".join([("%s=%s" % (s[0], s[1])) for s in settings])
     command = u"config:set %s" % cmd_args
-    return run_cmd(application, command)
+    run_cmd(application, command)
 
 
 @click.command(name='config')
@@ -204,4 +203,5 @@ def configure_application(target_environment):
         print u"%s %s=%s" % (status, key, local)
     print u""
 
-    print set_vars(app_name, updates)
+    if prompt_for_pin(""):
+        set_vars(app_name, updates)

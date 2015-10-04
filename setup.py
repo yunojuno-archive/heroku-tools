@@ -4,7 +4,7 @@ import os
 
 from setuptools import setup
 
-dependencies = ['click', 'envoy', 'pyyaml', 'requests', 'dateutils']
+dependencies = ['click', 'sarge', 'pyyaml', 'requests', 'dateutils']
 
 README = open(os.path.join(os.path.dirname(__file__), 'README.rst')).read()
 
