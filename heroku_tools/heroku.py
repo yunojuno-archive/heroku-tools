@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """Heroku API helper functions."""
 from dateutil import parser
+
 import click
-import envoy
 import requests
+import sarge
 
 from heroku_tools.config import settings
 
@@ -100,7 +101,7 @@ class HerokuRelease():
             raise HerokuError(u"Error calling Heroku API: %s" % ex)
 
         for r in releases:
-            description = r.get('description','').split(' ')[0]
+            description = r.get('description', '').split(' ')[0]
             if description in ('Promote', 'Deploy'):
                 return HerokuRelease(r)
             else:
@@ -110,14 +111,10 @@ class HerokuRelease():
 
 
 def _do_heroku_command(application, command):
+    """Run a Heroku CLI command ."""
     cmd = "heroku %s --app %s" % (command, application)
-    r = envoy.run(cmd)
-    if r.status_code > 0:
-        raise HerokuError(
-            u"Error running Heroku command '%s': %s"
-            % (cmd, r.std_err)
-        )
-    return r.std_out
+    if _async(cmd) > 0:
+        raise HerokuError(u"Error running Heroku command '%s'" % cmd)
 
 
 def run_command(application, command):
@@ -129,3 +126,14 @@ def toggle_maintenance(application, maintenance_on):
     """Toggle the Heroku maintenance feature on/off."""
     on_off = "on" if maintenance_on else "off"
     return _do_heroku_command(application, "maintenance:%s" % on_off)
+
+
+def _async(cmd):
+    """Run bash command async."""
+    r = sarge.run(cmd, stdout=sarge.Capture(), async=True)
+    r.close()
+    line = r.stdout.readline()
+    while line != '':
+        click.echo(line.strip())
+        line = r.stdout.readline()
+    return r.returncode

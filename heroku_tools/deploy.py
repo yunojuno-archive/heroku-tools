@@ -3,7 +3,7 @@
 import os
 
 import click
-import envoy
+import sarge
 
 from heroku_tools import git, heroku, utils
 from heroku_tools.config import settings, AppConfiguration
@@ -24,7 +24,7 @@ def get_release_note(commits, filename="RELEASE_NOTE"):
     else:
         with open(filename, 'w') as f:
             f.write(release_note)
-        envoy.run('%s %s' % (editor, filename))
+        sarge.run('%s %s' % (editor, filename))
         with open(filename, 'r') as f:
             release_note = f.read()
         os.remove(filename)

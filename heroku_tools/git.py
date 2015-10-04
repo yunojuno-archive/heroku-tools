@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """Git related commands."""
 import os
-import envoy
+
+import sarge
 
 from heroku_tools.config import settings
 
@@ -28,8 +29,8 @@ def _do_git_cmd(command):
 
     """
     cmd = git_cmd_prefix + command
-    r = envoy.run(cmd)
-    if r.status_code > 0:
+    r = sarge.run(cmd)
+    if r.returncode > 0:
         raise Exception(
             u"Error running git command '%s': %s"
             % (cmd, r.std_err)
@@ -51,7 +52,7 @@ def get_editor():
 
     """
     editor = (
-        envoy.run('git config --get core.editor').std_out or
+        sarge.run('git config --get core.editor').std_out or
         os.getenv('EDITOR') or
         os.getenv('VISUAL')
     )
