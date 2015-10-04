@@ -29,13 +29,13 @@ def _do_git_cmd(command):
 
     """
     cmd = git_cmd_prefix + command
-    r = sarge.run(cmd)
+    r = sarge.capture_stdout(cmd)
     if r.returncode > 0:
         raise Exception(
             u"Error running git command '%s': %s"
-            % (cmd, r.std_err)
+            % (cmd, r.stderr.text)
         )
-    return r.std_out
+    return r.stdout.text
 
 
 def get_remote_url(app_name):
@@ -52,7 +52,7 @@ def get_editor():
 
     """
     editor = (
-        sarge.run('git config --get core.editor').std_out or
+        sarge.capture_stdout('git config --get core.editor').stdout or
         os.getenv('EDITOR') or
         os.getenv('VISUAL')
     )
