@@ -22,13 +22,16 @@ def get_release_note(commits, filename="RELEASE_NOTE"):
         editor = git.get_editor()
         with open(filename, 'w') as f:
             f.write(release_note)
-        sarge.run('%s %s' % (editor, filename))
+        cmd = '%s %s' % (editor, filename)
+        print cmd
+        sarge.run(cmd)
         with open(filename, 'r') as f:
             release_note = f.read()
         os.remove(filename)
         return release_note
     except Exception:
         click.echo("No editor specified.")
+        raise
         return release_note
 
 
@@ -109,25 +112,32 @@ def deploy_application(target_environment, auto, branch, config_file,
             files_include_static
         )
 
+    maintenance_page = utils.prompt_for_action(
+        u"Would you like to turn the maintenance page on during deployment?",
+        run_migrate
+    )
+
+
     # ============== summarise actions ==========================
     click.echo("")
     click.echo("Summary of deployment options:")  # noqa
     click.echo("")
     click.echo("  ----- Deployment SETTINGS -----------")
     click.echo("")
-    click.echo("  Git branch:    %s" % branch)
-    click.echo("  Target env:    %s (%s)" % (target_environment, app_name))
-    click.echo("  Force push:    %s" % force)
-    click.echo("  Pipeline:      %s" % app.use_pipeline)
+    click.echo("  Maintenance page: %s" % maintenance_page)
+    click.echo("  Target env:       %s (%s)" % (target_environment, app_name))
+    click.echo("  Git branch:       %s" % branch)
+    click.echo("  Force push:       %s" % force)
+    click.echo("  Pipeline:         %s" % app.use_pipeline)
     if app.use_pipeline is True:
-        click.echo("  Promote:       %s" % app.upstream_app)
+        click.echo("  Promote app:      %s" % app.upstream_app)
     click.echo("")
     click.echo("  ----- Post-deployment commands ------")
     click.echo("")
     if run_migrate:
-        click.echo("  migrate:       %s" % cmd_migrate)
+        click.echo("  migrate:          %s" % cmd_migrate)
     if run_collectstatic:
-        click.echo("  collectstatic: %s" % cmd_collectstatic)
+        click.echo("  collectstatic:    %s" % cmd_collectstatic)
     if not (run_migrate or run_collectstatic):
         click.echo("  (none specfied)")
     click.echo("")
@@ -136,12 +146,18 @@ def deploy_application(target_environment, auto, branch, config_file,
     if not utils.prompt_for_pin(""):
         exit(0)
 
-    # click.echo("Putting up maintenance page")
-    # heroku.toggle_maintenance(app_name, True)
+    if maintenance_page:
+        click.echo("Putting up maintenance page")
+        heroku.toggle_maintenance(app_name, True)
 
     if app.use_pipeline:
         click.echo("Promoting upstream app: %s" % app.upstream_app)
         heroku.promote_app(app.upstream_app)
+        # collectstatic won't run by default during a pipeline
+        # promotion, so must be done manually.
+        if run_collectstatic is True:
+            click.echo("Running staticfiles command")
+            heroku.run_command(app_name, cmd_collectstatic)
     else:
         click.echo("Pushing to git remote")
         git.push(
@@ -155,12 +171,9 @@ def deploy_application(target_environment, auto, branch, config_file,
         click.echo("Running migrate command")
         heroku.run_command(app_name, cmd_migrate)
 
-    if run_collectstatic is True:
-        click.echo("Running staticfiles command")
-        heroku.run_command(app_name, cmd_collectstatic)
-
-    # click.echo("Pulling down maintenance page")
-    # heroku.toggle_maintenance(app_name, False)
+    if maintenance_page:
+        click.echo("Pulling down maintenance page")
+        heroku.toggle_maintenance(app_name, False)
 
     release = heroku.HerokuRelease.get_latest_deployment(app_name)
 
