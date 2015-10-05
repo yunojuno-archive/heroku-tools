@@ -156,4 +156,4 @@ def toggle_maintenance(application, maintenance_on):
 
 def promote_app(application):
     """Run the Heroku pipeline promote command."""
-    return run_cmd(application, "pipeline:promote")
+    return run_cmd(application, "pipelines:promote")
