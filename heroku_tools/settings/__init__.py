@@ -32,20 +32,9 @@ DEFAULT_SETTINGS = {
 }
 
 ENVIRON_SETTINGS = {
-    'app_conf_dir': os.getenv('HEROKU_TOOLS_CONF_DIR'),
-    'git_work_dir': os.getenv('HEROKU_TOOLS_WORK_DIR'),
     'editor': os.getenv('EDITOR') or os.getenv('VISUAL'),
     'heroku_api_token': os.getenv('HEROKU_TOOLS_API_TOKEN'),
-    'commands': {
-        'migrate': os.getenv('HEROKU_TOOLS_MIGRATE_CMD'),
-        'collectstatic': os.getenv('HEROKU_TOOLS_STATIC_CMD'),
-    },
-    'matches': {
-        'migrations': os.getenv('HEROKU_TOOLS_MATCH_MIGRATIONS'),
-        'staticfiles': os.getenv('HEROKU_TOOLS_MATCH_STATICFILES'),
-    }
 }
-
 
 def get_settings(filename):
     """Load configuration for heroku-tools itself.
@@ -60,38 +49,8 @@ def get_settings(filename):
     to the rest of the application as heroku_tools.conf.settings.
 
     """
-    settings = {
-        'app_conf_dir': (
-            ENVIRON_SETTINGS.get('HEROKU_TOOLS_CONF_DIR') or
-            DEFAULT_SETTINGS.get('app_conf_dir')
-        ),
-        'git_work_dir': (
-            ENVIRON_SETTINGS.get('HEROKU_TOOLS_WORK_DIR') or
-            DEFAULT_SETTINGS.get('git_work_dir')
-        ),
-        'editor': ENVIRON_SETTINGS.get('editor'),
-        'heroku_api_token': ENVIRON_SETTINGS.get('HEROKU_TOOLS_API_TOKEN'),
-        'commands': {
-            'migrate': (
-                ENVIRON_SETTINGS.get('HEROKU_TOOLS_MIGRATE_CMD') or
-                DEFAULT_SETTINGS['commands']['migrate']
-            ),
-            'collectstatic': (
-                ENVIRON_SETTINGS.get('HEROKU_TOOLS_STATIC_CMD') or
-                DEFAULT_SETTINGS['commands']['collectstatic']
-            ),
-        },
-        'matches': {
-            'migrations': (
-                ENVIRON_SETTINGS.get('HEROKU_TOOLS_MATCH_MIGRATIONS') or
-                DEFAULT_SETTINGS['matches']['migrations']
-            ),
-            'staticfiles': (
-                ENVIRON_SETTINGS.get('HEROKU_TOOLS_MATCH_STATICFILES') or
-                DEFAULT_SETTINGS['matches']['staticfiles']
-            ),
-        }
-    }
+    settings = DEFAULT_SETTINGS
+    settings.update(ENVIRON_SETTINGS)
 
     if filename in (None, ''):
         click.echo(u"No config specified, default settings will be applied.")
@@ -102,6 +61,7 @@ def get_settings(filename):
         try:
             with open(filename, 'r') as settings_file:
                 local = yaml.load(settings_file)
+                click.echo(u"Updating settings: %s" % local.get('settings', {}))
                 settings.update(local.get('settings', {}))
                 settings['commands'].update(local.get('commands', {}))
                 settings['matches'].update(local.get('matches', {}))
