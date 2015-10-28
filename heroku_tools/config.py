@@ -68,6 +68,11 @@ class AppConfiguration(object):
         return self.application.get('upstream', None)
 
     @property
+    def release_note(self):
+        """If True then prompt the user for a release note."""
+        return self.application.get('release_note', False)
+
+    @property
     def add_tag(self):
         """Add release version as a git tag post-deployment."""
         return self.application.get('add_tag', False)
