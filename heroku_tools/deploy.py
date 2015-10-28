@@ -162,8 +162,9 @@ def deploy_application(target_environment, config_file, branch, force, collectst
         click.echo("Running staticfiles command")
         heroku.run_command(app_name, cmd_collectstatic)
 
-    click.echo("Pulling down maintenance page")
-    heroku.toggle_maintenance(app_name, False)
+    if maintenance:
+        click.echo("Pulling down maintenance page")
+        heroku.toggle_maintenance(app_name, False)
 
     release = heroku.HerokuRelease.get_latest_deployment(app_name)
 
