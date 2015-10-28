@@ -11,7 +11,11 @@ class MockResponse(object):
     """Mock requests library response.json()."""
     def json(self):
         """Return JSON representation."""
-        return json.load(open('test_data/foo.json', 'r'))
+        return json.load(open('heroku_tools/test_data/foo.json', 'r'))
+
+    @property
+    def status_code(self):
+      return 200
 
 
 def mock_get(*args, **kwargs):
