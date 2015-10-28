@@ -56,10 +56,9 @@ def get_editor():
     Raise an Exception if no editor is configured.
 
     """
-    editor = (
-        SETTINGS.get('editor') or 
-        sarge.capture_stdout('git config --get core.editor')
-    )
+    git_config = sarge.capture_stdout('git config --get core.editor')
+    editor = (SETTINGS.get('editor') or git_config.stdout.text.strip())
+
     if editor is None:
         raise Exception(
             "No editor configured in git config, "
