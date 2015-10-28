@@ -1,2 +1,6 @@
-*.pyc
+*.conf
 *.egg-info
+*.pyc
+.herokutoolsconf
+.tox/*
+PKG-INFO
