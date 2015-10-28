@@ -6,9 +6,9 @@ Opinionated tools for managing Heroku applications, based on the workflow used b
 Background
 ----------
 
-We (YunoJuno) have been deploying our application to Heroku for the past three years, and we've evolved a set of Fabric scripts to help us with this process. This project is extracted out of that work. It includes CLI applications for deploying apps to Heroku, managing configuration of apps (via env vars), and migrating data between apps.
+We (YunoJuno) have been deploying our application to Heroku for the past three years, and we've evolved a set of Fabric scripts to help us with this process. This project is extracted out of that work. It includes CLI applications for deploying apps to Heroku and managing configuration via remote config vars.
 
-It is **opinionated**, and enforces a specific workflow.
+It is **opinionated**, and enforces a specific workflow, and can (currently) be used for deploying only Django applications.
 
 Workflow
 --------
@@ -31,25 +31,29 @@ Deploying an application to Heroku is often described as being as simple as a si
 In most cases it looks more like this:
 
 1. See what's in the proposed deployment (``git log``)
-2. Turn on the maintenance page (esp. if it contains data migrations)
-3. Push up the code (``git push``)
-4. Run any data migrations required by the deployment
-5. Run ``collectstatic`` (or equivalent) if static content has changed
+2. Turn on the app maintenance page
+3. Push up the code
+5. Run collectstatic ^^
+4. Run data migrations
 6. Turn off maintenance page
 7. Write a release note
 8. Inform others of the deployment
 
-This project encapsulates all of the above.
+This project encapsulates these steps.
+
+^^ Collectstatic will run automatically as part of the default Django buildpack, but if you are pushing content to CDN this may not be the desired behaviour, and you may wish to run collectstatic explicitly post-deployment.
 
 .. code:: shell
 
-    $ deploy dev
-    $ deploy dev --branch feature/xxx
+    $ heroku-tools deploy dev
+    $ heroku-tools deploy dev --branch feature/xxx
 
-Migrations are run automatically if the changeset includes files under "/migrations/", and collectstatic is run if the changeset includes "/static/".
+Migrations are run automatically if the changeset includes files under "/migrations/".
 
 Deployments
 -----------
+
+**UPDATE** This project has been scaled back in ambition - the deploy function is no longer generic, and is specifically written for Django.
 
 This project contains a ``deploy`` command line application that reinforces this workflow. It takes a number of options (run ``deploy --help`` for the full list), but by default it will enforce the workflow described above. A deployment the the dev environment will push the dev branch, uat will push master, etc. It will run a diff against the remote Heroku repo to determine the list of commits (and changed files) that will be pushed, and infer from that whether to run the migrations and collectstatic.
 
@@ -67,6 +71,10 @@ The workflow specifics are configured in application / environment files:
         pipeline: True
         # the upstream application to promote
         upstream: staging_app
+        # add a tag to the commit using the release version from Heroku
+        add_tag: False
+        # add a tag, and write a release note into the tag message (experimental)
+        add_rich_tag: False
 
     # Heroku application environment settings managed by the conf command
     settings:
@@ -80,11 +88,6 @@ Configuration
 -------------
 
 The ``config`` command line application incorporates our `configuration management process <http://tech.yunojuno.com/managing-multiple-heroku-configurations>`_. It sets application environment variables from the settings block in the ``application.conf`` file. Before applying the settings to the Heroku application it will run a diff against the current value of each setting in the local file. It prints out the diff, so that you can see which settings will be applied, and prompts the user to confirm that the settings should be applied before pushing to Heroku.
-
-Data
-----
-
-TBC - this will include our data migration and anonymisation process.
 
 Status
 ------
