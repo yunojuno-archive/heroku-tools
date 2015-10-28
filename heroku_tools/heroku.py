@@ -15,23 +15,26 @@ import click
 import requests
 import sarge
 
-from heroku_tools.settings import SETTINGS
+from heroku_tools import settings
 
 HEROKU_API_URL_STEM = 'https://api.heroku.com/apps/%s/'
 HEROKU_API_URL_RELEASES = HEROKU_API_URL_STEM + 'releases'
 HEROKU_API_URL_CONFIG_VARS = HEROKU_API_URL_STEM + 'config-vars'
-HEROKU_API_TOKEN = SETTINGS['heroku_api_token']
 
 
 class HerokuError(Exception):
+
     """Error raised when something goes wrong interacting with Heroku."""
+
     pass
 
 
 class HerokuRelease(object):
+
     """Encapsulates a release as described by the Heroku release API.
 
     See https://devcenter.heroku.com/articles/platform-api-reference#release
+
     """
 
     def __init__(self, raw):
@@ -109,7 +112,6 @@ class HerokuRelease(object):
         """
         return 'DISABLE_COLLECTSTATIC' not in self.get_config_vars()
 
-
     @classmethod
     def get_latest_deployment(cls, application):
         """Return the most recent release as HerokuRelease object.
@@ -135,7 +137,7 @@ class HerokuRelease(object):
 def call_api(endpoint, application, range_header=None):
     """Call Heroku API and return response.json()."""
     url = endpoint % application
-    auth = requests.auth.HTTPBasicAuth('', HEROKU_API_TOKEN)
+    auth = requests.auth.HTTPBasicAuth('', settings.heroku_api_token)
     headers = {'Accept': 'application/vnd.heroku+json; version=3'}
     if range_header is not None:
         headers['Range'] = range_header

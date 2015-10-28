@@ -5,9 +5,7 @@ import os
 import click
 import sarge
 
-from heroku_tools import git, heroku, utils
-from heroku_tools.config import AppConfiguration
-from heroku_tools.settings import SETTINGS
+from heroku_tools import git, config, heroku, utils, settings
 
 
 def get_release_note(commits, filename="RELEASE_NOTE"):
@@ -38,7 +36,7 @@ def get_release_note(commits, filename="RELEASE_NOTE"):
 @click.option('-b', '--branch', help="Deploy a specific branch")
 @click.option('-f', '--force', is_flag=True, help="Run 'git push' with the '-f' force option")  # noqa
 @click.option('-s', '--collectstatic', is_flag=True, help="Run collectstatic command post deployment")  # noqa
-def deploy_application(target_environment, config_file, branch, force, collectstatic):
+def deploy_application(target_environment, config_file, branch, force, collectstatic):  # noqa
     """Deploy a Heroku application.
 
     Push code via git, run collectstatic and migrate commands, and wrap
@@ -54,16 +52,16 @@ def deploy_application(target_environment, config_file, branch, force, collectst
 
     """
     # read in and parse configuration
-    app = AppConfiguration.load(
+    app = config.AppConfiguration.load(
         config_file or
-        os.path.join(SETTINGS['app_conf_dir'], '%s.conf' % target_environment)
+        os.path.join(settings.app_conf_dir, '%s.conf' % target_environment)
     )
     app_name = app.app_name
     branch = branch or app.default_branch
-    cmd_collectstatic = SETTINGS['commands']['collectstatic']
-    cmd_migrate = SETTINGS['commands']['migrate']
-    # used to work out whether the deployment contains migrations 
-    match_migrations = SETTINGS['matches']['migrations']
+    cmd_collectstatic = settings.commands.get('collectstatic')
+    cmd_migrate = settings.commands.get('migrate')
+    # used to work out whether the deployment contains migrations
+    match_migrations = '/migrations/'
 
     # get the contents of the proposed deployment
     release = heroku.HerokuRelease.get_latest_deployment(app_name)
@@ -85,10 +83,16 @@ def deploy_application(target_environment, config_file, branch, force, collectst
     click.echo("Comparing %s..%s" % (remote_hash, local_hash))
     click.echo("")
     click.echo("The following files have changed since the last deployment:\n")  # noqa
-    click.echo("".join(["  * %s\n" % f for f in files]))
+    if len(files) == 0:
+        click.echo("  (no change)")
+    else:
+        click.echo("".join(["  * %s\n" % f for f in files]))
     click.echo("")
     click.echo("The following commits will be included in this deployment:\n")  # noqa
-    click.echo("".join(["  [%s] %s\n" % (c[0], c[1]) for c in commits]))
+    if len(commits) == 0:
+        click.echo("  (no change)")
+    else:
+        click.echo("".join(["  [%s] %s\n" % (c[0], c[1]) for c in commits]))
 
     files_include = (lambda p: p in ''.join(files))
     files_include_migrations = files_include(match_migrations)
@@ -117,6 +121,12 @@ def deploy_application(target_environment, config_file, branch, force, collectst
     if app.use_pipeline is True:
         click.echo("  Pipeline:      True")
         click.echo("  Promote:       %s" % app.upstream_app)
+    if app.add_rich_tag is True:
+        click.echo("  Release tag:   custom")
+    elif app.rich_tag is True:
+        click.echo("  Release tag:   default")
+    else:
+        click.echo("  Release tag:   none")
     click.echo("")
     click.echo("  ----- Post-deployment commands ------")
     click.echo("")
@@ -129,7 +139,7 @@ def deploy_application(target_environment, config_file, branch, force, collectst
     click.echo("")
     # ============== / summarise actions ========================
 
-    # put up the maintenance page if required 
+    # put up the maintenance page if required
     maintenance = utils.prompt_for_action(
         u"Do you want to put up the maintenance page?",
         run_migrate
@@ -168,18 +178,10 @@ def deploy_application(target_environment, config_file, branch, force, collectst
 
     release = heroku.HerokuRelease.get_latest_deployment(app_name)
 
-    if app.add_tag:
+    if app.add_rich_tag or app.add_tag:
         click.echo("Applying git tag")
-        git.apply_tag(
-            commit=local_hash,
-            tag=release.version,
-            message="Deployed to %s by %s" % (
-                app_name,
-                release.deployed_by
-            )
-        )
+        default_msg = "Deployed to %s by %s" % (app_name, release.deployed_by)
+        message = None if app.add_rich_tag else default_msg
+        git.apply_tag(commit=local_hash, tag=release.version, message=message)
 
     click.echo(release)
-    # if release_note and utils.prompt_for_action(
-    #     "Would you like to write a release note? ", True):
-    #     release_note = get_release_note(commits)

@@ -10,10 +10,10 @@ import os
 
 import sarge
 
-from heroku_tools.settings import SETTINGS
+from heroku_tools import settings
 
 # location of the website git repo directory
-WORK_DIR = SETTINGS['git_work_dir']
+WORK_DIR = settings.git_work_dir
 GIT_DIR = os.path.join(WORK_DIR, '.git')
 GIT_CMD_PREFIX = "git --git-dir=%s --work-tree=%s " % (GIT_DIR, WORK_DIR)
 
@@ -36,36 +36,14 @@ def run_git_cmd(command):
     cmd = GIT_CMD_PREFIX + command
     r = sarge.capture_stdout(cmd)
     if r.returncode > 0:
-        raise Exception(
-            u"Error running git command '%s': %s"
-            % (cmd, r.stderr.text)
-        )
+        # git doesn't play nicely so r.stderr is None even though it failed
+        raise Exception(u"Error running git command '%s'" % cmd)
     return r.stdout.text
 
 
 def get_remote_url(app_name):
     """Return the git remote address on Heroku."""
     return "git@heroku.com:%s.git" % app_name
-
-
-def get_editor():
-    """Return the configured editor value.
-
-    Looks first in git.config, then SETTINGS
-
-    Raise an Exception if no editor is configured.
-
-    """
-    git_config = sarge.capture_stdout('git config --get core.editor')
-    editor = (SETTINGS.get('editor') or git_config.stdout.text.strip())
-
-    if editor is None:
-        raise Exception(
-            "No editor configured in git config, "
-            "$EDITOR or $VISUAL."
-        )
-
-    return editor
 
 
 def push(remote, local_branch, remote_branch="master", force=False):
@@ -134,7 +112,21 @@ def get_files(commit_from, commit_to):
     return [f for f in files if f != '']
 
 
-def apply_tag(commit, tag, message):
-    """Apply a tag to a given git commit."""
-    command = "tag -a %s -m  '%s' %s" % (tag, message, commit)
+def apply_tag(commit, tag, message=None):
+    """Apply an annotated tag to a given git commit.
+
+    Args:
+        commit: string, the hash of the commit to tag
+        tag: string, the tag label
+
+    Kwargs:
+        message: string, if supplied then used as the tag message; if
+            None, then rely on local git configuration to pop up an
+            editor. Commonly used to provide a release note.
+
+    """
+    if message is None:
+        command = "tag -a %s %s" % (tag, commit)
+    else:
+        command = "tag -a %s -m  '%s' %s" % (tag, message, commit)
     run_git_cmd(command)

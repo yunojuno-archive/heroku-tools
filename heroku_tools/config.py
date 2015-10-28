@@ -5,9 +5,8 @@ import os
 import click
 import yaml
 
-from heroku_tools.settings import SETTINGS
-from heroku_tools.heroku import HerokuRelease, run_cmd
-from heroku_tools.utils import prompt_for_pin
+from heroku_tools import heroku, settings, utils
+
 
 class ConfigurationError(Exception):
 
@@ -76,6 +75,11 @@ class AppConfiguration(object):
     def add_tag(self):
         """Add release version as a git tag post-deployment."""
         return self.application.get('add_tag', False)
+
+    @property
+    def add_rich_tag(self):
+        """Add a git tag with a release note post-deployment."""
+        return self.application.get('add_rich_tag', False)
 
 
 def compare_settings(local_config_vars, remote_config_vars):
@@ -149,7 +153,7 @@ def print_diff(diff, statuses=['=', '+', '?', '!']):
             elif status == '?':  # it's a remote setting
                 print u'? %s: %s (remote only)' % (kmax, remote)
             else:
-                print u"Unknown configuration status for %s: %s" % (key, status)
+                print u"Unknown status for %s: %s" % (key, status)
 
 
 def set_vars(application, settings):
@@ -165,13 +169,13 @@ def set_vars(application, settings):
     # the Heroku config:set command takes a space delimited set of k=v pairs
     cmd_args = " ".join([("%s=%s" % (s[0], s[1])) for s in settings])
     command = u"config:set %s" % cmd_args
-    run_cmd(application, command)
+    heroku.run_cmd(application, command)
 
 
 @click.command(name='config')
 @click.argument('target_environment')
 def configure_application(target_environment):
-    """Configure Heroku application settings.
+    r"""Configure Heroku application settings.
 
     Run a diff between local configuration and remote settings
     and apply any updates to the remote application:
@@ -185,10 +189,10 @@ def configure_application(target_environment):
 
     """
     app = AppConfiguration.load(
-        os.path.join(SETTINGS['app_conf_dir'], '%s.conf' % target_environment)
+        os.path.join(settings.app_conf_dir, '%s.conf' % target_environment)
     )
     app_name = app.app_name
-    release = HerokuRelease.get_latest_deployment(app_name)
+    release = heroku.HerokuRelease.get_latest_deployment(app_name)
     diff = compare_settings(app.settings, release.get_config_vars())
 
     print u"\nLocal settings (diff shown by '!', '+' indicator):\n"
@@ -208,5 +212,5 @@ def configure_application(target_environment):
         print u"%s %s=%s" % (status, key, local)
     print u""
 
-    if prompt_for_pin(""):
+    if utils.prompt_for_pin(""):
         set_vars(app_name, updates)
