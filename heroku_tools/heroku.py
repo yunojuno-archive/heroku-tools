@@ -97,6 +97,19 @@ class HerokuRelease(object):
             self.application
         )
 
+    def collectstatic_enabled(self):
+        """Return True if collectstatic runs as part of the buildpack.
+
+        collectstatic will run as part of the standard Django buildpack
+        unless DISABLE_COLLECTSTATIC is set as a config var. This method
+        looks for the var, and if it's missing, then returns True. In
+        this case, there is no point running collectstatic manually, as
+        it will already run as part of the install.
+
+        """
+        return 'DISABLE_COLLECTSTATIC' not in self.get_config_vars()
+
+
     @classmethod
     def get_latest_deployment(cls, application):
         """Return the most recent release as HerokuRelease object.
@@ -127,7 +140,10 @@ def call_api(endpoint, application, range_header=None):
     if range_header is not None:
         headers['Range'] = range_header
     try:
-        return requests.get(url, auth=auth, headers=headers).json()
+        resp = requests.get(url, auth=auth, headers=headers)
+        if resp.status_code > 299:
+            raise HerokuError(resp.text)
+        return resp.json()
     except Exception as ex:
         raise HerokuError(u"Error calling Heroku API: %s" % ex)
 

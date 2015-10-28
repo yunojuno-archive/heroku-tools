@@ -34,14 +34,11 @@ def get_release_note(commits, filename="RELEASE_NOTE"):
 
 @click.command(name='deploy')
 @click.argument('target_environment')
-@click.option('-a', '--auto', is_flag=True, help="Accept options without asking for confirmation")  # noqa
-@click.option('-b', '--branch', help="Deploy a specific branch")
 @click.option('-c', '--config-file', help="Specify application configuration file to use")  # noqa
+@click.option('-b', '--branch', help="Deploy a specific branch")
 @click.option('-f', '--force', is_flag=True, help="Run 'git push' with the '-f' force option")  # noqa
-@click.option('-s', '--run-collectstatic', is_flag=True, help="Run collectstatic command post deployment")  # noqa
-@click.option('-m', '--run-migrate', is_flag=True, help="Run the migrate command post deployment")  # noqa
-def deploy_application(target_environment, auto, branch, config_file,
-                       force, run_collectstatic, run_migrate):
+@click.option('-s', '--collectstatic', is_flag=True, help="Run collectstatic command post deployment")  # noqa
+def deploy_application(target_environment, config_file, branch, force, collectstatic):
     """Deploy a Heroku application.
 
     Push code via git, run collectstatic and migrate commands, and wrap
@@ -65,11 +62,16 @@ def deploy_application(target_environment, auto, branch, config_file,
     branch = branch or app.default_branch
     cmd_collectstatic = SETTINGS['commands']['collectstatic']
     cmd_migrate = SETTINGS['commands']['migrate']
+    # used to work out whether the deployment contains migrations 
     match_migrations = SETTINGS['matches']['migrations']
-    match_staticfiles = SETTINGS['matches']['staticfiles']
 
     # get the contents of the proposed deployment
     release = heroku.HerokuRelease.get_latest_deployment(app_name)
+    # will collectstatic run as part of the buildpack - it will never run
+    # if this is a pipeline deployment, as that bypasses the buildpack
+    run_buildpack = not app.use_pipeline
+    collectstatic_enabled = release.collectstatic_enabled()
+
     remote_hash = release.commit
     local_hash = git.get_branch_head(branch)
     if local_hash == remote_hash:
@@ -87,27 +89,16 @@ def deploy_application(target_environment, auto, branch, config_file,
     click.echo("")
     click.echo("The following commits will be included in this deployment:\n")  # noqa
     click.echo("".join(["  [%s] %s\n" % (c[0], c[1]) for c in commits]))
-    click.echo("")
 
     files_include = (lambda p: p in ''.join(files))
     files_include_migrations = files_include(match_migrations)
-    files_include_static = files_include(match_staticfiles)
 
-    if force:
-        run_migrate = True
-        run_collectstatic = True
-    elif auto:
-        run_migrate = run_migrate or files_include_migrations
-        run_collectstatic = run_collectstatic or files_include_static
-    else:
-        run_migrate = run_migrate or utils.prompt_for_action(
-            u"Do you want to run migrations?",
-            files_include_migrations
-        )
-        run_collectstatic = run_collectstatic or utils.prompt_for_action(
-            u"Do you want to run collectstatic?",
-            files_include_static
-        )
+    # run migrations post-deployment
+    run_migrate = force or utils.prompt_for_action(
+        u"Do you want to run migrations?",
+        files_include_migrations
+    )
+    run_collectstatic = collectstatic
 
     # ============== summarise actions ==========================
     click.echo("")
@@ -118,26 +109,38 @@ def deploy_application(target_environment, auto, branch, config_file,
     click.echo("  Git branch:    %s" % branch)
     click.echo("  Target env:    %s (%s)" % (target_environment, app_name))
     click.echo("  Force push:    %s" % force)
-    click.echo("  Pipeline:      %s" % app.use_pipeline)
+    # run the buildpack as a full deployment
+    if run_buildpack is True:
+        click.echo("  Run buildpack: True")
+        click.echo("  Collectstatic: %s" % collectstatic_enabled)
+    # pipeline promotion - buildpack won't run
     if app.use_pipeline is True:
+        click.echo("  Pipeline:      True")
         click.echo("  Promote:       %s" % app.upstream_app)
     click.echo("")
     click.echo("  ----- Post-deployment commands ------")
     click.echo("")
     if run_migrate:
         click.echo("  migrate:       %s" % cmd_migrate)
-    if run_collectstatic:
+    if collectstatic:
         click.echo("  collectstatic: %s" % cmd_collectstatic)
     if not (run_migrate or run_collectstatic):
         click.echo("  (none specfied)")
     click.echo("")
     # ============== / summarise actions ========================
 
+    # put up the maintenance page if required 
+    maintenance = utils.prompt_for_action(
+        u"Do you want to put up the maintenance page?",
+        run_migrate
+    )
+
     if not utils.prompt_for_pin(""):
         exit(0)
 
-    # click.echo("Putting up maintenance page")
-    # heroku.toggle_maintenance(app_name, True)
+    if maintenance:
+        click.echo("Putting up maintenance page")
+        heroku.toggle_maintenance(app_name, True)
 
     if app.use_pipeline:
         click.echo("Promoting upstream app: %s" % app.upstream_app)
@@ -159,8 +162,8 @@ def deploy_application(target_environment, auto, branch, config_file,
         click.echo("Running staticfiles command")
         heroku.run_command(app_name, cmd_collectstatic)
 
-    # click.echo("Pulling down maintenance page")
-    # heroku.toggle_maintenance(app_name, False)
+    click.echo("Pulling down maintenance page")
+    heroku.toggle_maintenance(app_name, False)
 
     release = heroku.HerokuRelease.get_latest_deployment(app_name)
 

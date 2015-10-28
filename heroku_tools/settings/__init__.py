@@ -61,7 +61,6 @@ def get_settings(filename):
         try:
             with open(filename, 'r') as settings_file:
                 local = yaml.load(settings_file)
-                click.echo(u"Updating settings: %s" % local.get('settings', {}))
                 settings.update(local.get('settings', {}))
                 settings['commands'].update(local.get('commands', {}))
                 settings['matches'].update(local.get('matches', {}))
