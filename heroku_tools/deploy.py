@@ -71,7 +71,15 @@ def deploy_application(target_environment, config_file, branch, force, collectst
     collectstatic_enabled = release.collectstatic_enabled()
 
     remote_hash = release.commit
-    local_hash = git.get_branch_head(branch)
+    if app.use_pipeline:
+        # if we are using pipelines, then the commit we need is not the
+        # local one, but the latest version on the upstream app, as this
+        # is the one that will be deployed.
+        upstream_release = heroku.HerokuRelease.get_latest_deployment(app.upstream_app)  # noqa
+        local_hash = upstream_release.commit
+    else:
+        local_hash = git.get_branch_head(branch)
+
     if local_hash == remote_hash:
         click.echo(u"Heroku application is up-to-date, aborting deployment.")
         return
@@ -123,7 +131,7 @@ def deploy_application(target_environment, config_file, branch, force, collectst
         click.echo("  Promote:       %s" % app.upstream_app)
     if app.add_rich_tag is True:
         click.echo("  Release tag:   custom")
-    elif app.rich_tag is True:
+    elif app.add_tag is True:
         click.echo("  Release tag:   default")
     else:
         click.echo("  Release tag:   none")
