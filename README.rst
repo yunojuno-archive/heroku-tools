@@ -33,15 +33,15 @@ In most cases it looks more like this:
 1. See what's in the proposed deployment (``git log``)
 2. Turn on the app maintenance page
 3. Push up the code
-5. Run collectstatic ^^
-4. Run data migrations
+4. Run collectstatic ^^
+5. Run data migrations
 6. Turn off maintenance page
 7. Write a release note
 8. Inform others of the deployment
 
 This project encapsulates these steps.
 
-^^ Collectstatic will run automatically as part of the default Django buildpack, but if you are pushing content to CDN this may not be the desired behaviour, and you may wish to run collectstatic explicitly post-deployment.
+^^ Collectstatic will run automatically as part of the default Herkou Django buildpack, but if you are pushing content to CDN this may not be the desired behaviour, and you may wish to run ``collectstatic`` explicitly post-deployment.
 
 .. code:: shell
 
