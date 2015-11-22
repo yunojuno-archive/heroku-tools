@@ -10,7 +10,7 @@ README = open(os.path.join(os.path.dirname(__file__), 'README.rst')).read()
 
 setup(
     name='heroku-tools',
-    version='0.2.1',
+    version='0.2.2',
     url='https://github.com/yunojuno/heroku-tools',
     license='MIT',
     author='Hugo Rodger-Brown',
@@ -22,6 +22,7 @@ setup(
     include_package_data=True,
     packages=[
         'heroku_tools',
+        'heroku_tools.settings',
     ],
     install_requires=dependencies,
     entry_points={
