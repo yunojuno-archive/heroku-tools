@@ -5,8 +5,7 @@ import unittest
 from mock import patch, call
 from heroku_tools.heroku import HerokuRelease
 import utils
-import click
-from click.testing import CliRunner
+
 
 class MockResponse(object):
     """Mock requests library response.json()."""
@@ -16,7 +15,7 @@ class MockResponse(object):
 
     @property
     def status_code(self):
-      return 200
+        return 200
 
 
 def mock_get(*args, **kwargs):
@@ -26,7 +25,7 @@ def mock_get(*args, **kwargs):
 class HerokuReleaseTests(unittest.TestCase):
 
     def setUp(self):
-        json_data = json.load(open('test_data/foo.json', 'r'))
+        json_data = json.load(open('heroku_tools/test_data/foo.json', 'r'))
         self.json_input = json_data[1]
         self.initial_release_json = json_data[0]
         self.herokurelease = HerokuRelease(self.json_input)
@@ -57,36 +56,70 @@ class HerokuReleaseTests(unittest.TestCase):
         HTTPBasicAuth.return_value = "authorized"
         from heroku_tools.heroku import call_api
         result = call_api('endpoint-%s', 'application', 'range_header')
-        self.assertEqual(get.call_args, call('endpoint-application',
-                                             auth='authorized',
-                                             headers={'Range': 'range_header',
-                                                      'Accept': 'application/vnd.heroku+json; version=3'}))
-        self.assertEqual(result, [{u'created_at': u'2013-06-15T15:01:29Z',
-                                   u'description': u'Initial release',
-                                   u'app': {u'id': u'1b5d48f7-1863-4db4-a108-cc1f7928dacc',
-                                            u'name': u'test_app'},
-                                   u'updated_at': u'2013-06-15T15:01:29Z', u'slug': None,
-                                   u'version': 1, u'user': {u'email': u'hugo@example.com',
-                                                            u'id': u'f7ee12b5-4343-4bfc-aae4-195a392d913d'},
-                                   u'id': u'c0d15ac3-4101-459d-8c68-ce02a662b068'},
-                                  {u'created_at': u'2013-06-18T14:07:52Z', u'description': u'Deploy 99ed2b0',
-                                   u'app': {u'id': u'1b5d48f7-1863-4db4-a108-cc1f7928dacc', u'name': u'test_app'},
-                                   u'updated_at': u'2013-06-18T14:07:52Z', u'slug':
-                                       {u'id': u'c15c01b2-6d41-443b-ba13-bf358fbc7821'}, u'version': 17,
-                                   u'user': {u'email': u'hugo@example.com',
-                                             u'id': u'f7ee12b5-4343-4bfc-aae4-195a392d913d'},
-                                   u'id': u'2fa73c36-4b25-4797-b374-f1f3be994ff2'}])
+        self.assertEqual(
+            get.call_args,
+            call(
+                'endpoint-application',
+                auth='authorized',
+                headers={
+                    'Range': 'range_header',
+                    'Accept': 'application/vnd.heroku+json; version=3'
+                }
+            )
+        )
+        self.assertEqual(
+            result,
+            [{
+                u'created_at': u'2013-06-15T15:01:29Z',
+                u'description': u'Initial release',
+                u'app': {
+                    u'id': u'1b5d48f7-1863-4db4-a108-cc1f7928dacc',
+                    u'name': u'test_app'
+                },
+                u'updated_at': u'2013-06-15T15:01:29Z',
+                u'slug': None,
+                u'version': 1,
+                u'user':
+                    {
+                        u'email': u'hugo@example.com',
+                        u'id': u'f7ee12b5-4343-4bfc-aae4-195a392d913d'
+                    },
+                u'id': u'c0d15ac3-4101-459d-8c68-ce02a662b068'
+            }, {
+                u'created_at': u'2013-06-18T14:07:52Z', u'description': u'Deploy 99ed2b0',
+                u'app': {
+                    u'id': u'1b5d48f7-1863-4db4-a108-cc1f7928dacc',
+                    u'name': u'test_app'
+                },
+                u'updated_at': u'2013-06-18T14:07:52Z',
+                u'slug': {
+                    u'id': u'c15c01b2-6d41-443b-ba13-bf358fbc7821'
+                },
+                u'version': 17,
+                u'user': {
+                    u'email': u'hugo@example.com',
+                    u'id': u'f7ee12b5-4343-4bfc-aae4-195a392d913d'
+                },
+                u'id': u'2fa73c36-4b25-4797-b374-f1f3be994ff2'
+            }]
+        )
 
     @patch("heroku_tools.heroku.parser")
     def test_heroku_attributes(self, parser):
         for attribute in ('version', 'description'):
-            self.assertEqual(getattr(self.herokurelease, attribute),
-                             self.json_input[attribute])
-        self.assertEqual(self.herokurelease.deployed_by,
-                         self.json_input['user']['email'])
+            self.assertEqual(
+                getattr(self.herokurelease, attribute),
+                self.json_input[attribute]
+            )
+        self.assertEqual(
+            self.herokurelease.deployed_by,
+            self.json_input['user']['email']
+        )
         parser.parse.return_value = '2013-06-18T14:07:52Z'
-        self.assertEqual(self.json_input['updated_at'],
-                         self.herokurelease.deployed_at)
+        self.assertEqual(
+            self.json_input['updated_at'],
+            self.herokurelease.deployed_at
+        )
 
     def test_commit(self):
 
@@ -154,21 +187,11 @@ class UtilsTests(unittest.TestCase):
     def test_split_print_lines(self):
         input_text = "line1, line2, line3"
         utils.split_print_lines(input_text, delimiter=",")
-        self.assertEqual(self.mock_click_echo.call_args_list,
-                         [call('  * line1'), call('  *  line2'),
-                          call('  *  line3')])
-
-    def test_split_print_lines_new(self):
-        input_text = "line1, line2, line3"
-
-        @click.command()
-        def split_lines():
-            utils.split_print_lines(input_text, delimiter=",")
-
-        runner = CliRunner()
-        arguments = dict(delimiter=",")
-        result = runner.invoke(split_lines)
-        import ipdb; ipdb.set_trace()
-
-
-
+        self.assertEqual(
+            self.mock_click_echo.call_args_list,
+            [
+                call('  * line1'),
+                call('  *  line2'),
+                call('  *  line3')
+            ]
+        )
