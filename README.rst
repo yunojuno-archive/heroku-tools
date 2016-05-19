@@ -3,6 +3,9 @@ Heroku Tools
 
 Opinionated tools for managing Heroku applications, based on the workflow used by YunoJuno, outlined in `this blog post <http://tech.yunojuno.com/deploying-django-apps-to-heroku-3>`_.
 
+.. image:: https://travis-ci.org/yunojuno/heroku-tools.svg?branch=master
+    :target: https://travis-ci.org/yunojuno/heroku-tools
+
 Background
 ----------
 
