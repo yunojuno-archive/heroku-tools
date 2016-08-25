@@ -66,15 +66,15 @@ def get_settings(filename):
         return settings
 
 # the default settings can be overridden by a local '.herokutoolsconf' files
-_setttings = get_settings(os.path.join(os.getcwd(), '.herokutoolsconf'))
+_settings = get_settings(os.path.join(os.getcwd(), '.herokutoolsconf'))
 
 # provide easy access to the settings
-app_conf_dir = _setttings['app_conf_dir']
-git_work_dir = _setttings['git_work_dir']
-commands = _setttings['commands']
+app_conf_dir = _settings['app_conf_dir']
+git_work_dir = _settings['git_work_dir']
+commands = _settings['commands']
 migrate_cmd = commands['migrate']
 collectstatic_cmd = commands['collectstatic']
-heroku_api_token = _setttings['heroku_api_token']
+heroku_api_token = _settings['heroku_api_token']
 
 
 @click.command(name='settings')
@@ -87,3 +87,27 @@ def print_settings():
     click.echo(r"collectstatic_cmd = %s" % collectstatic_cmd)
     click.echo(r"heroku_api_token  = %s" % heroku_api_token)
     click.echo(r"-------------------------------------")
+
+
+@click.command(name='init')
+@click.argument('environment')
+def init_conf(environment):
+    """Create a new app conf file from user prompts."""
+    path = os.path.join(app_conf_dir, '%s.conf' % environment)
+    if os.path.exists(path):
+        click.echo("A conf file already exists for '%s' at '%s'" % (environment, path))
+        return
+    click.echo("")
+    click.echo("This will create a file called %s.conf from your responses." % environment)
+    app_name = raw_input("What is the name of the Heroku application: ")
+    branch = raw_input("Which branch should be deployed by default: ")
+    data = {
+        'application': {
+            'name': app_name,
+            'branch': branch,
+        }
+    }
+    path = os.path.join(app_conf_dir, '%s.conf' % environment)
+    with open(path, 'w') as f:
+        yaml.dump(data, f, default_flow_style=False)
+    click.echo("Configuration data written to %s" % path)
