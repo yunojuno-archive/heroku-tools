@@ -5,6 +5,8 @@ Opinionated tools for managing Heroku applications, based on the workflow used b
 
 .. image:: https://travis-ci.org/yunojuno/heroku-tools.svg?branch=master
     :target: https://travis-ci.org/yunojuno/heroku-tools
+.. image:: https://badge.fury.io/py/heroku-tools.svg
+    :target: https://badge.fury.io/py/heroku-tools
 
 Background
 ----------
