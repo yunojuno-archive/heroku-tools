@@ -13,7 +13,7 @@ REQUIREMENTS = '\n'.join(open(os.path.join(os.path.dirname(__file__), 'requireme
 
 setup(
     name='heroku-tools',
-    version='0.2.3',
+    version='0.2.4',
     url='https://github.com/yunojuno/heroku-tools',
     license='MIT',
     author='Hugo Rodger-Brown',
