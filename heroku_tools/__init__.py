@@ -2,7 +2,11 @@
 """Package declaration for heroku_tools, inc. main entry point"""
 import click
 
-from heroku_tools import config, settings, deploy
+from . import (
+    config,
+    settings,
+    deploy
+)
 
 
 @click.group()
@@ -19,7 +23,7 @@ def entry_point():
     pass
 
 # add sub-commands to the main entrypoint
-entry_point.add_command(settings.init_conf)
+entry_point.add_command(settings.init_app_conf)
 entry_point.add_command(settings.print_settings)
 entry_point.add_command(deploy.deploy_application)
 entry_point.add_command(config.configure_application)

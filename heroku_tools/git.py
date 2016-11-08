@@ -10,7 +10,7 @@ import os
 
 import sarge
 
-from heroku_tools import settings
+from . import settings
 
 # location of the website git repo directory
 WORK_DIR = settings.git_work_dir

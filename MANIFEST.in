@@ -1,3 +1,4 @@
+include CONTRIBUTING.md
 include LICENCE
 include README.rst
-include CONTRIBUTING.md
+include requirements.txt

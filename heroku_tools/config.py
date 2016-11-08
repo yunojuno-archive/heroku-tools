@@ -5,7 +5,11 @@ import os
 import click
 import yaml
 
-from heroku_tools import heroku, settings, utils
+from . import (
+    heroku,
+    settings,
+    utils
+)
 
 
 class ConfigurationError(Exception):

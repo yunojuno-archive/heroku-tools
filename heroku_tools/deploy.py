@@ -5,7 +5,13 @@ import os
 import click
 import sarge
 
-from heroku_tools import git, config, heroku, utils, settings
+from . import (
+    config,
+    git,
+    heroku,
+    settings,
+    utils
+)
 
 
 def get_release_note(commits, filename="RELEASE_NOTE"):

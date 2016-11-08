@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import json
 import unittest
-
 from mock import patch, call
-from heroku_tools.heroku import HerokuRelease
-import utils
+
+from . import utils
+from .heroku import HerokuRelease
 
 
 class MockResponse(object):

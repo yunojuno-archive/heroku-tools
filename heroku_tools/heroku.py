@@ -15,7 +15,7 @@ import click
 import requests
 import sarge
 
-from heroku_tools import settings
+from . import settings
 
 HEROKU_API_URL_STEM = 'https://api.heroku.com/apps/%s/'
 HEROKU_API_URL_RELEASES = HEROKU_API_URL_STEM + 'releases'
@@ -148,6 +148,23 @@ def call_api(endpoint, application, range_header=None):
         return resp.json()
     except Exception as ex:
         raise HerokuError(u"Error calling Heroku API: %s" % ex)
+
+
+def get_auth_token():
+    """Use the heroku auth:token command to fetch the user's API token.
+
+    By using the heroku CLI itself we remove the requirement to set up
+    an environment variable for the token.
+
+    """
+    r = sarge.capture_stdout('heroku auth:token')
+    if r.returncode == 0:
+        return r.stdout.text
+    else:
+        raise HerokuError(
+            "Unable to retrieve user auth token from Heroku, "
+            "please ensure that you are logged in using `heroku login`."
+        )
 
 
 def run_cmd(application, command):

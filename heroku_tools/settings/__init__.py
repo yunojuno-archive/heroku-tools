@@ -91,7 +91,7 @@ def print_settings():
 
 @click.command(name='init')
 @click.argument('environment')
-def init_conf(environment):
+def init_app_conf(environment):
     """Create a new app conf file from user prompts."""
     path = os.path.join(app_conf_dir, '%s.conf' % environment)
     if os.path.exists(path):
