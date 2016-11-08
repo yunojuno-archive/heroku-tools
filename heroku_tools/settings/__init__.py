@@ -47,7 +47,10 @@ DEFAULT_SETTINGS = {
 
 if DEFAULT_SETTINGS['heroku_api_token'] is None:
     click.echo("No HEROKU_API_TOKEN environment variable set, checking Heroku API.")
-    DEFAULT_SETTINGS['heroku_api_token'] = _auth_token()
+    try:
+        DEFAULT_SETTINGS['heroku_api_token'] = _auth_token()
+    except Exception:
+        DEFAULT_SETTINGS['heroku_api_token'] = None
 
 
 def get_settings(filename):
