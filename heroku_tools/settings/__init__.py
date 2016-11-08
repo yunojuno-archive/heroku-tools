@@ -15,9 +15,25 @@ foo/bar
 import os
 
 import click
+import sarge
 import yaml
 
 CWD = os.getcwd()
+
+
+def _auth_token():
+    """Call the heroku auth:token api.
+
+    This function is inside settings, not Heroku, as it's part of the
+    settings process, and is only called once, on startup.
+
+    """
+    r = sarge.capture_stdout('heroku auth:token')
+    if r.returncode > 0:
+        # git doesn't play nicely so r.stderr is None even though it failed
+        raise Exception(u"Error getting heroku auth_token")
+    return r.stdout.text.strip()
+
 
 DEFAULT_SETTINGS = {
     'app_conf_dir': CWD,
@@ -26,8 +42,12 @@ DEFAULT_SETTINGS = {
         'migrate': 'python manage.py migrate',
         'collectstatic': 'python manage.py collectstatic --noinput',
     },
-    'heroku_api_token': os.getenv('HEROKU_API_TOKEN', ''),
+    'heroku_api_token': os.getenv('HEROKU_API_TOKEN'),
 }
+
+if DEFAULT_SETTINGS['heroku_api_token'] is None:
+    click.echo("No HEROKU_API_TOKEN environment variable set, checking Heroku API.")
+    DEFAULT_SETTINGS['heroku_api_token'] = _auth_token()
 
 
 def get_settings(filename):
