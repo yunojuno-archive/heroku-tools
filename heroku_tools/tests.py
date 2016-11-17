@@ -4,7 +4,7 @@ import unittest
 from mock import patch, call
 
 from . import utils
-from .heroku import HerokuRelease
+from .heroku import HerokuRelease, HerokuError
 
 
 class MockResponse(object):
@@ -35,17 +35,33 @@ class HerokuReleaseTests(unittest.TestCase):
     @patch("heroku_tools.heroku.HerokuRelease")
     def test_get_latest_deployment(self, HerokuRelease, echo, call_api):
         """Test unpacking of Heroku API release JSON."""
-        call_api.return_value = [{'description': 'Deploy'},
-                                 {'description': 'Promote'}]
+        call_api.return_value = [
+            {'description': 'Deploy'},
+            {'description': 'Promote'}
+        ]
         self.herokurelease.get_latest_deployment('x')
-        self.assertEqual(HerokuRelease.call_args,
-                         call({'description': 'Deploy'}))
+        call_api.assert_called_once_with(
+            'https://api.heroku.com/apps/%s/releases',
+            'x',
+            range_header='version;max=10,order=desc'
+        )
+        HerokuRelease.assert_called_once_with({'description': 'Deploy'})
 
         #  If no Deploy or Promote description HerokuError will be raised
-        from heroku_tools.heroku import HerokuError
+        # from heroku_tools.heroku import HerokuError
         call_api.return_value = [{'description': 'Hulahoop'}]
         with self.assertRaises(HerokuError):
             self.herokurelease.get_latest_deployment('x')
+
+        # now test with the HEROKU_API_MAX_RELEASE set
+        call_api.return_value = [{'description': 'Deploy'}]
+        with patch('heroku_tools.heroku.HEROKU_API_MAX_RANGE', 1):
+            self.herokurelease.get_latest_deployment('x')
+            call_api.assert_called_with(
+                'https://api.heroku.com/apps/%s/releases',
+                'x',
+                range_header='version;max=1,order=desc'
+            )
 
     @patch("requests.auth.HTTPBasicAuth")
     @patch("requests.get", side_effect=mock_get)

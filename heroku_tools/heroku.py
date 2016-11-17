@@ -10,6 +10,7 @@ application release.
 
 """
 from dateutil import parser
+from os import getenv
 
 import click
 import requests
@@ -20,6 +21,7 @@ from . import settings
 HEROKU_API_URL_STEM = 'https://api.heroku.com/apps/%s/'
 HEROKU_API_URL_RELEASES = HEROKU_API_URL_STEM + 'releases'
 HEROKU_API_URL_CONFIG_VARS = HEROKU_API_URL_STEM + 'config-vars'
+HEROKU_API_MAX_RANGE = int(getenv('HEROKU_API_MAX_RANGE', 10))
 
 
 class HerokuError(Exception):
@@ -121,7 +123,7 @@ class HerokuRelease(object):
         releases = call_api(
             HEROKU_API_URL_RELEASES,
             application,
-            range_header='version;max=10,order=desc'
+            range_header='version;max=%i,order=desc' % HEROKU_API_MAX_RANGE
         )
 
         for release in releases:
