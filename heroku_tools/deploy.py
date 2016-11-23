@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Deployment scripts."""
 import os
+import subprocess
 
 import click
 import sarge
@@ -36,6 +37,13 @@ def get_release_note(commits, filename="RELEASE_NOTE"):
         return release_note
 
 
+def run_post_deployment_tasks(tasks):
+    # runs post-deployment tasks -- expects them to specify the heroku app involved as required
+    for task in tasks:
+        subprocess.call(task.split())  # ie, needs to be separated into individual words
+    click.echo("Post-deployment tasks completed")
+
+
 @click.command(name='deploy')
 @click.argument('target_environment')
 @click.option('-c', '--config-file', help="Specify application configuration file to use")  # noqa
@@ -45,7 +53,8 @@ def get_release_note(commits, filename="RELEASE_NOTE"):
 def deploy_application(target_environment, config_file, branch, force, collectstatic):  # noqa
     """Deploy a Heroku application.
 
-    Push code via git, run collectstatic and migrate commands, and wrap
+    Push code via git, run collectstatic if relevant, then run any specific
+    post-deployment commands specced in the configuration file, and wrap
     all of this with the maintenance page to prevent users from using the
     site whilst the deployment is running.
 
@@ -65,9 +74,6 @@ def deploy_application(target_environment, config_file, branch, force, collectst
     app_name = app.app_name
     branch = branch or app.default_branch
     cmd_collectstatic = settings.commands.get('collectstatic')
-    cmd_migrate = settings.commands.get('migrate')
-    # used to work out whether the deployment contains migrations
-    match_migrations = '/migrations/'
 
     # get the contents of the proposed deployment
     release = heroku.HerokuRelease.get_latest_deployment(app_name)
@@ -93,6 +99,8 @@ def deploy_application(target_environment, config_file, branch, force, collectst
     files = git.get_files(remote_hash, local_hash)
     commits = git.get_commits(remote_hash, local_hash)
 
+    post_deploy_tasks = app.post_deploy_tasks
+
     click.echo("")
     click.echo("Comparing %s..%s" % (remote_hash, local_hash))
     click.echo("")
@@ -108,14 +116,6 @@ def deploy_application(target_environment, config_file, branch, force, collectst
     else:
         click.echo("".join(["  [%s] %s\n" % (c[0], c[1]) for c in commits]))
 
-    files_include = (lambda p: p in ''.join(files))
-    files_include_migrations = files_include(match_migrations)
-
-    # run migrations post-deployment
-    run_migrate = force or utils.prompt_for_action(
-        u"Do you want to run migrations?",
-        files_include_migrations
-    )
     run_collectstatic = collectstatic
 
     # ============== summarise actions ==========================
@@ -144,19 +144,21 @@ def deploy_application(target_environment, config_file, branch, force, collectst
     click.echo("")
     click.echo("  ----- Post-deployment commands ------")
     click.echo("")
-    if run_migrate:
-        click.echo("  migrate:       %s" % cmd_migrate)
+
+    if not post_deploy_tasks:
+        click.echo("  (None specified)")
+    else:
+        [click.echo("  %s" % x) for x in post_deploy_tasks]
+
     if collectstatic:
         click.echo("  collectstatic: %s" % cmd_collectstatic)
-    if not (run_migrate or run_collectstatic):
-        click.echo("  (none specfied)")
     click.echo("")
     # ============== / summarise actions ========================
 
     # put up the maintenance page if required
     maintenance = utils.prompt_for_action(
         u"Do you want to put up the maintenance page?",
-        run_migrate
+        False
     )
 
     if not utils.prompt_for_pin(""):
@@ -178,9 +180,9 @@ def deploy_application(target_environment, config_file, branch, force, collectst
             force=force
         )
 
-    if run_migrate is True:
-        click.echo("Running migrate command")
-        heroku.run_command(app_name, cmd_migrate)
+    if post_deploy_tasks:
+        click.echo("Running post-deployment tasks:")
+        run_post_deployment_tasks(post_deploy_tasks)
 
     if run_collectstatic is True:
         click.echo("Running staticfiles command")

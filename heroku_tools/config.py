@@ -85,6 +85,11 @@ class AppConfiguration(object):
         """Add a git tag with a release note post-deployment."""
         return self.application.get('add_rich_tag', False)
 
+    @property
+    def post_deploy_tasks(self):
+        """A list of strings to be executed as shell commands after deployment"""
+        return self.application.get('post_deploy', [])
+
 
 def compare_settings(local_config_vars, remote_config_vars):
     """Compare local and remote settings and return the diff.

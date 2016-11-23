@@ -4,3 +4,6 @@
 .herokutoolsconf
 .tox/*
 PKG-INFO
+/.coverage
+/build
+/dist
