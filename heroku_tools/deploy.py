@@ -15,28 +15,6 @@ from . import (
 )
 
 
-def get_release_note(commits, filename="RELEASE_NOTE"):
-    """Invoke git editor to create a new release note.
-
-    Args:
-        commits: the output from get_commits - a list of 2-tuples
-            containing commit hash and message.
-    """
-    release_note = '\n'.join(["* %s" % c[1] for c in commits])
-    try:
-        editor = git.get_editor()
-        with open(filename, 'w') as f:
-            f.write(release_note)
-        sarge.run('%s %s' % (editor, filename))
-        with open(filename, 'r') as f:
-            release_note = f.read()
-        os.remove(filename)
-        return release_note
-    except Exception:
-        click.echo("No editor specified.")
-        return release_note
-
-
 def run_post_deployment_tasks(tasks):
     # runs post-deployment tasks -- expects them to specify the heroku app involved as required
     for task in tasks:
@@ -49,8 +27,7 @@ def run_post_deployment_tasks(tasks):
 @click.option('-c', '--config-file', help="Specify application configuration file to use")  # noqa
 @click.option('-b', '--branch', help="Deploy a specific branch")
 @click.option('-f', '--force', is_flag=True, help="Run 'git push' with the '-f' force option")  # noqa
-@click.option('-s', '--collectstatic', is_flag=True, help="Run collectstatic command post deployment")  # noqa
-def deploy_application(target_environment, config_file, branch, force, collectstatic):  # noqa
+def deploy_application(target_environment, config_file, branch, force):  # noqa
     """Deploy a Heroku application.
 
     Push code via git, run collectstatic if relevant, then run any specific
@@ -73,14 +50,9 @@ def deploy_application(target_environment, config_file, branch, force, collectst
     )
     app_name = app.app_name
     branch = branch or app.default_branch
-    cmd_collectstatic = settings.commands.get('collectstatic')
 
     # get the contents of the proposed deployment
     release = heroku.HerokuRelease.get_latest_deployment(app_name)
-    # will collectstatic run as part of the buildpack - it will never run
-    # if this is a pipeline deployment, as that bypasses the buildpack
-    run_buildpack = not app.use_pipeline
-    collectstatic_enabled = release.collectstatic_enabled()
 
     remote_hash = release.commit
     if app.use_pipeline:
@@ -116,8 +88,6 @@ def deploy_application(target_environment, config_file, branch, force, collectst
     else:
         click.echo("".join(["  [%s] %s\n" % (c[0], c[1]) for c in commits]))
 
-    run_collectstatic = collectstatic
-
     # ============== summarise actions ==========================
     click.echo("")
     click.echo("Summary of deployment options:")  # noqa
@@ -127,20 +97,11 @@ def deploy_application(target_environment, config_file, branch, force, collectst
     click.echo("  Git branch:    %s" % branch)
     click.echo("  Target env:    %s (%s)" % (target_environment, app_name))
     click.echo("  Force push:    %s" % force)
-    # run the buildpack as a full deployment
-    if run_buildpack is True:
-        click.echo("  Run buildpack: True")
-        click.echo("  Collectstatic: %s" % collectstatic_enabled)
     # pipeline promotion - buildpack won't run
-    if app.use_pipeline is True:
-        click.echo("  Pipeline:      True")
+    click.echo("  Pipeline:      %s" % app.use_pipeline)
+    if app.use_pipeline:
         click.echo("  Promote:       %s" % app.upstream_app)
-    if app.add_rich_tag is True:
-        click.echo("  Release tag:   custom")
-    elif app.add_tag is True:
-        click.echo("  Release tag:   default")
-    else:
-        click.echo("  Release tag:   none")
+    click.echo("  Release tag:   %s" % app.add_tag)
     click.echo("")
     click.echo("  ----- Post-deployment commands ------")
     click.echo("")
@@ -150,8 +111,6 @@ def deploy_application(target_environment, config_file, branch, force, collectst
     else:
         [click.echo("  %s" % x) for x in post_deploy_tasks]
 
-    if collectstatic:
-        click.echo("  collectstatic: %s" % cmd_collectstatic)
     click.echo("")
     # ============== / summarise actions ========================
 
@@ -184,20 +143,15 @@ def deploy_application(target_environment, config_file, branch, force, collectst
         click.echo("Running post-deployment tasks:")
         run_post_deployment_tasks(post_deploy_tasks)
 
-    if run_collectstatic is True:
-        click.echo("Running staticfiles command")
-        heroku.run_command(app_name, cmd_collectstatic)
-
     if maintenance:
         click.echo("Pulling down maintenance page")
         heroku.toggle_maintenance(app_name, False)
 
     release = heroku.HerokuRelease.get_latest_deployment(app_name)
 
-    if app.add_rich_tag or app.add_tag:
+    if app.add_tag:
         click.echo("Applying git tag")
-        default_msg = "Deployed to %s by %s" % (app_name, release.deployed_by)
-        message = None if app.add_rich_tag else default_msg
+        message = "Deployed to %s by %s" % (app_name, release.deployed_by)
         git.apply_tag(commit=local_hash, tag=release.version, message=message)
 
     click.echo(release)
