@@ -39,7 +39,6 @@ DEFAULT_SETTINGS = {
     'app_conf_dir': CWD,
     'git_work_dir': CWD,
     'commands': {
-        'migrate': 'python manage.py migrate',
         'collectstatic': 'python manage.py collectstatic --noinput',
     },
     'heroku_api_token': os.getenv('HEROKU_API_TOKEN'),
@@ -95,7 +94,6 @@ _settings = get_settings(os.path.join(os.getcwd(), '.herokutoolsconf'))
 app_conf_dir = _settings['app_conf_dir']
 git_work_dir = _settings['git_work_dir']
 commands = _settings['commands']
-migrate_cmd = commands['migrate']
 collectstatic_cmd = commands['collectstatic']
 heroku_api_token = _settings['heroku_api_token']
 
@@ -106,7 +104,6 @@ def print_settings():
     click.echo(r"-------------------------------------")
     click.echo(r"app_conf_dir      = %s" % app_conf_dir)
     click.echo(r"git_work_dir      = %s" % git_work_dir)
-    click.echo(r"migrate_cmd       = %s" % migrate_cmd)
     click.echo(r"collectstatic_cmd = %s" % collectstatic_cmd)
     click.echo(r"heroku_api_token  = %s" % heroku_api_token)
     click.echo(r"-------------------------------------")

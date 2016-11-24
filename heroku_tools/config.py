@@ -71,19 +71,14 @@ class AppConfiguration(object):
         return self.application.get('upstream', None)
 
     @property
-    def release_note(self):
-        """If True then prompt the user for a release note."""
-        return self.application.get('release_note', False)
-
-    @property
     def add_tag(self):
         """Add release version as a git tag post-deployment."""
         return self.application.get('add_tag', False)
 
     @property
-    def add_rich_tag(self):
-        """Add a git tag with a release note post-deployment."""
-        return self.application.get('add_rich_tag', False)
+    def post_deploy_tasks(self):
+        """A list of strings to be executed as shell commands after deployment"""
+        return self.application.get('post_deploy', [])
 
 
 def compare_settings(local_config_vars, remote_config_vars):

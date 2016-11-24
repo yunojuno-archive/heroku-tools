@@ -39,7 +39,7 @@ In most cases it looks more like this:
 2. Turn on the app maintenance page
 3. Push up the code
 4. Run collectstatic ^^
-5. Run data migrations
+5. Run post-deployment tasks - eg: database migrations
 6. Turn off maintenance page
 7. Write a release note
 8. Inform others of the deployment
@@ -53,7 +53,7 @@ This project encapsulates these steps.
     $ heroku-tools deploy dev
     $ heroku-tools deploy dev --branch feature/xxx
 
-Migrations are run automatically if the changeset includes files under "/migrations/".
+The command to apply Migrations is specified via the configuration file as a post_deploy action. This is a change compared to version of Heroku-tools < 0.3
 
 Deployments
 -----------
