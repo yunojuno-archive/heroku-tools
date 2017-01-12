@@ -91,7 +91,8 @@ def get_commits(commit_from, commit_to):
     command = "log --oneline --no-merges %s..%s" % (commit_from, commit_to)
     raw = run_git_cmd(command)
     lines = raw.lstrip().rstrip().split('\n')
-    return [(l[:7], l[8:]) for l in lines if l != '']
+    # split on the first space - separating commit hash and message
+    return [l.split(' ', 1) for l in lines if l != '']
 
 
 def get_files(commit_from, commit_to):

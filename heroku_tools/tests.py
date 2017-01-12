@@ -5,6 +5,7 @@ from mock import patch, call
 
 from . import utils
 from .heroku import HerokuRelease, HerokuError
+from .git import get_commits
 
 
 class MockResponse(object):
@@ -211,3 +212,24 @@ class UtilsTests(unittest.TestCase):
                 call('  *  line3')
             ]
         )
+
+
+class GitTests(unittest.TestCase):
+
+    """Tests for the git module functions."""
+
+    @patch('heroku_tools.git.run_git_cmd')
+    def test_get_commits(self, mock_git):
+        """Test the parsing of one-line git commit logs."""
+        # check that it works with variables commit hash lengths (git
+        # defaults to 7 chars, but may increase this based on the
+        # likelihood of a clash.
+        mock_git.return_value = (
+            "81a5ea8 Fix failing tests\n"
+            "62d49e9ab Refactor foobar"
+        )
+        commits = get_commits('ABC', 'DEF')
+        mock_git.assert_called_once_with('log --oneline --no-merges ABC..DEF')
+        self.assertEqual(len(commits), 2)
+        self.assertEqual(commits[0], ['81a5ea8', 'Fix failing tests'])
+        self.assertEqual(commits[1], ['62d49e9ab', 'Refactor foobar'])
