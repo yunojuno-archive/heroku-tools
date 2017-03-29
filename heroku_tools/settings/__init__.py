@@ -119,14 +119,22 @@ def init_app_conf(environment):
         return
     click.echo("")
     click.echo("This will create a file called %s.conf from your responses." % environment)
-    app_name = raw_input("What is the name of the Heroku application: ")
-    branch = raw_input("Which branch should be deployed by default: ")
+    app_name = raw_input("What is the name of the Heroku application? ")
+    branch = raw_input("Which branch should be deployed by default? ")
+    pipeline = raw_input("Is this a pipeline deployment [y/n]?  ").lower().startswith('y')
+    if pipeline:
+        upstream = raw_input("What is the name of the upstream app? ")
+    add_tag = raw_input("Do you want to add a release tag [y/n]? ").lower().startswith('y')
     data = {
         'application': {
             'name': app_name,
             'branch': branch,
+            'pipeline': pipeline,
+            'add_tag': add_tag
         }
     }
+    if pipeline:
+        data['application']['upstream'] = upstream
     path = os.path.join(app_conf_dir, '%s.conf' % environment)
     with open(path, 'w') as f:
         yaml.dump(data, f, default_flow_style=False)
