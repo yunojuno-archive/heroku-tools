@@ -49,7 +49,7 @@ def deploy_application(target_environment, config_file, branch, force):  # noqa
         os.path.join(settings.app_conf_dir, '%s.conf' % target_environment)
     )
     app_name = app.app_name
-    branch = branch or app.default_branch
+    branch = branch or app.default_branch or git.get_current_branch()
 
     # get the contents of the proposed deployment
     release = heroku.HerokuRelease.get_latest_deployment(app_name)
