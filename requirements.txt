@@ -1,6 +1,6 @@
 click==6.6
 dateutils==0.6.6
 mock==2.0.0
-PyYAML==3.12
+PyYAML==5.4
 requests==2.11.1
 sarge==0.1.4
